@@ -251,6 +251,22 @@ class ImageBase:
         self.sku = obj['sku']
         self.version = obj.get('version', 'latest')
 
+@dataclass
+class ImagePlan:
+    # required
+    publisher: str
+    name: str
+    product: str
+    # optional
+    #pippromotionCode: str
+
+    def __init__(self, obj: dict, path: Path = None) -> None:
+        _validate_data_object(ImagePlan, obj, path=path, parent_key='plan')
+
+        self.publisher = obj['publisher']
+        self.name = obj['name']
+        self.product = obj['product']
+        #self.pippromotionCode = obj.get('pippromotionCode')
 
 @dataclass
 class Image:
@@ -265,6 +281,8 @@ class Image:
     description: str = None
     install: Optional[ImageInstall] = None
     base: ImageBase = None
+    #optional
+    plan: ImagePlan = None
     update: bool = True
     # cli
     name: str = None
@@ -290,6 +308,9 @@ class Image:
             self.base = ImageBase(IMAGE_DEFAULT_BASE_WINDOWS, path)
         else:
             raise ValidationError('Image base is required for non-Windows images')
+
+        if 'plan' in obj:
+            self.plan = ImagePlan(obj['plan'], path)
 
         self.update = obj.get('update', True)
 

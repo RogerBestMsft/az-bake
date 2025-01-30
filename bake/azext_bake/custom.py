@@ -41,6 +41,7 @@ logger = get_logger(__name__)
 # bake sandbox
 # ----------------
 
+# pylint: disable=too-many-positional-arguments
 def bake_sandbox_create(cmd, location, name_prefix, sandbox_resource_group_name=None, gallery_resource_id=None,
                         tags=None, principal_id=None, vnet_address_prefix='10.0.0.0/24',
                         default_subnet_name='default', default_subnet_address_prefix='10.0.0.0/25',
@@ -124,6 +125,7 @@ def bake_sandbox_validate(cmd, sandbox_resource_group_name: str, gallery_resourc
 # bake repo
 # ----------------
 
+# pylint: disable=too-many-positional-arguments
 def bake_repo_build(cmd, repository_path, image_names: Sequence[str] = None, sandbox: Sandbox = None,
                     gallery: Gallery = None, images: Sequence[Image] = None, repository_url: str = None,
                     repository_token: str = None, repository_revision: str = None, repo: Repo = None):
@@ -201,6 +203,7 @@ def bake_repo_validate(cmd, repository_path, sandbox: Sandbox = None, gallery: G
     logger.info('Validating repository')
 
 
+# pylint: disable=too-many-positional-arguments
 def bake_repo_setup(cmd, sandbox_resource_group_name: str, gallery_resource_id: str, repository_path='./',
                     repository_provider: str = None, sandbox: Sandbox = None, gallery: Gallery = None):
     logger.info('Setting up repository')
@@ -282,6 +285,7 @@ def bake_image_logs(cmd, sandbox_resource_group_name, image_name, sandbox: Sandb
     print(log.content)
 
 
+# pylint: disable=too-many-positional-arguments
 def bake_image_bump(cmd, repository_path='./', image_names: Sequence[str] = None, images: Sequence[Image] = None,
                     major: bool = False, minor: bool = False):
     logger.info('Bumping image version')
@@ -322,6 +326,7 @@ def bake_image_bump(cmd, repository_path='./', image_names: Sequence[str] = None
 # bake yaml
 # ----------------
 
+# pylint: disable=too-many-positional-arguments
 def bake_yaml_export(cmd, sandbox_resource_group_name, gallery_resource_id,
                      sandbox: Sandbox = None, gallery: Gallery = None, images: Sequence[Image] = None,
                      outfile='./bake.yml', outdir=None, stdout=False):
@@ -418,9 +423,14 @@ def bake_builder_build(cmd, sandbox: Sandbox = None, gallery: Gallery = None, im
 
     definition = get_image_definition(cmd, gallery.resource_group, gallery.name, image.name)
     if not definition:
-        logger.info(f'Image definition {image.name} does not exist. Creating...')
-        definition = create_image_definition(cmd, gallery.resource_group, gallery.name, image.name,
-                                             image.publisher, image.offer, image.sku, gallery_res.location)
+        if image.plan is None:
+            definition = create_image_definition(cmd, gallery.resource_group, gallery.name, image.name,
+                image.publisher, image.offer, image.sku, gallery_res.location)
+        else:
+            definition = create_image_definition(cmd, gallery.resource_group, gallery.name, image.name,
+                image.publisher, image.offer, image.sku, gallery_res.location, plan_name=image.plan.name,
+                plan_product=image.plan.product, plan_publisher=image.plan.publisher)
+            
     elif image_version_exists(cmd, gallery.resource_group, gallery.name, image.name, image.version):
         raise CLIError('Image version already exists')
 
@@ -468,6 +478,7 @@ def bake_builder_build(cmd, sandbox: Sandbox = None, gallery: Gallery = None, im
 # _private
 # ----------------
 
+# pylint: disable=too-many-positional-arguments
 def _bake_yaml_export(sandbox: Sandbox = None, gallery: Gallery = None, images: Sequence[Image] = None,
                       outfile=None, outdir=None, stdout=False):
     logger.info('Exporting bake.yaml file')
