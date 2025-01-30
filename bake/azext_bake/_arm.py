@@ -252,8 +252,7 @@ def image_version_exists(cmd, resource_group_name: str, gallery_name: str, galle
     return version is not None
 
 
-# pylint: disable=unused-argument, unused-variable
-# pylint: disable=too-many-positional-arguments
+# pylint: disable=too-many-positional-arguments,disable=unused-argument, unused-variable, disable=too-many-locals
 def create_image_definition(cmd, resource_group_name, gallery_name, gallery_image_name, publisher, offer, sku,
                             location=None, os_type='Windows', os_state='Generalized', end_of_life_date=None,
                             description=None, tags=None, plan_name=None, plan_publisher=None, plan_product=None):
@@ -268,17 +267,17 @@ def create_image_definition(cmd, resource_group_name, gallery_name, gallery_imag
         GalleryImage, GalleryImageIdentifier, Disallowed, GalleryImageFeature = cmd.get_models(
             'GalleryImage', 'GalleryImageIdentifier', 'Disallowed', 'GalleryImageFeature',
             resource_type=ResourceType.MGMT_COMPUTE, operation_group='galleries')
-        
-        purchase_plan = None     
+
+        purchase_plan = None
     else:
 
-        GalleryImage, GalleryImageIdentifier, RecommendedMachineConfiguration, ResourceRange, Disallowed, ImagePurchasePlan, GalleryImageFeature = cmd.get_models(
-            'GalleryImage', 'GalleryImageIdentifier', 'RecommendedMachineConfiguration', 'ResourceRange',
-            'Disallowed', 'ImagePurchasePlan', 'GalleryImageFeature',
-            resource_type=ResourceType.MGMT_COMPUTE, operation_group='galleries')
-        
-        purchase_plan = ImagePurchasePlan(name=plan_name, publisher=plan_publisher, product=plan_product)      
-        
+        GalleryImage, GalleryImageIdentifier, RecommendedMachineConfiguration, ResourceRange, Disallowed, \
+            ImagePurchasePlan, GalleryImageFeature = cmd.get_models(
+                'GalleryImage', 'GalleryImageIdentifier', 'RecommendedMachineConfiguration', 'ResourceRange',
+                'Disallowed', 'ImagePurchasePlan', 'GalleryImageFeature',
+                resource_type=ResourceType.MGMT_COMPUTE, operation_group='galleries')
+
+        purchase_plan = ImagePurchasePlan(name=plan_name, publisher=plan_publisher, product=plan_product)
 
     feature_list = [
         GalleryImageFeature(name='SecurityType', value='TrustedLaunch')

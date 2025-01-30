@@ -424,13 +424,17 @@ def bake_builder_build(cmd, sandbox: Sandbox = None, gallery: Gallery = None, im
     definition = get_image_definition(cmd, gallery.resource_group, gallery.name, image.name)
     if not definition:
         if image.plan is None:
-            definition = create_image_definition(cmd, gallery.resource_group, gallery.name, image.name,
-                image.publisher, image.offer, image.sku, gallery_res.location)
+            definition = create_image_definition(
+                cmd, gallery.resource_group, gallery.name, image.name,
+                image.publisher, image.offer, image.sku, gallery_res.location
+            )
         else:
-            definition = create_image_definition(cmd, gallery.resource_group, gallery.name, image.name,
+            definition = create_image_definition(
+                cmd, gallery.resource_group, gallery.name, image.name,
                 image.publisher, image.offer, image.sku, gallery_res.location, plan_name=image.plan.name,
-                plan_product=image.plan.product, plan_publisher=image.plan.publisher)
-            
+                plan_product=image.plan.product, plan_publisher=image.plan.publisher
+            )
+
     elif image_version_exists(cmd, gallery.resource_group, gallery.name, image.name, image.version):
         raise CLIError('Image version already exists')
 

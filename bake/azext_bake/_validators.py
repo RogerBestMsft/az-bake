@@ -285,7 +285,7 @@ def bake_yaml_validator(cmd, ns, path=None):
 
 def image_yaml_validator(cmd, ns, path):
     image = get_yaml_file_data(Image, path)
-    
+
     if hasattr(ns, 'image'):
         ns.image = image
 
