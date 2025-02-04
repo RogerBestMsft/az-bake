@@ -22,6 +22,10 @@ pushd $tcdir > /dev/null
     pip install azdev
     echo ""
 
+    echo "Installing setuptools==70.0.0 (fixes issue with azdev linter)"
+    pip install setuptools==70.0.0
+    echo ""
+
     echo "Setting up Azure CLI Dev Tools (azdev)"
     azdev setup -r $PWD -e bake
     echo ""
