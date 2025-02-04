@@ -101,7 +101,7 @@
             "args": [
                 "push",
                 // "ghcr.io/${input:imageRepository}/builder:latest"
-                "ghcr.io/colbylwilliams/az-bake/builder:latest"
+                "ghcr.io/rogerbestmsft/az-bake/builder:latest"
             ],
             "dependsOn": [
                 "docker: push"
@@ -117,7 +117,7 @@
             "args": [
                 "push",
                 // "ghcr.io/${input:imageRepository}/builder:${input:imageTagVersion}"
-                "ghcr.io/colbylwilliams/az-bake/builder:${input:imageTagVersion}"
+                "ghcr.io/rogerbestmsft/az-bake/builder:${input:imageTagVersion}"
             ],
             "icon": {
                 "id": "rocket",
@@ -132,8 +132,8 @@
                 "dockerfile": "${workspaceFolder}${pathSeparator}builder${pathSeparator}Dockerfile",
                 // "tag": "ghcr.io/${input:imageRepository}/builder:${input:imageTagVersion}",
                 // "customOptions": "-t \"ghcr.io/${input:imageRepository}/builder:latest\"",
-                "tag": "ghcr.io/colbylwilliams/az-bake/builder:${input:imageTagVersion}",
-                "customOptions": "-t \"ghcr.io/colbylwilliams/az-bake/builder:latest\"",
+                "tag": "ghcr.io/rogerbestmsft/az-bake/builder:${input:imageTagVersion}",
+                "customOptions": "-t \"ghcr.io/rogerbestmsft/az-bake/builder:latest\"",
                 "buildArgs": {
                     "IMAGE_VERSION": "${input:imageTagVersion}"
                 },

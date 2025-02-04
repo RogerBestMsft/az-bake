@@ -73,9 +73,9 @@ class Repo:
     def _parse_devops_url(self, url):
         '''Parse an Azure DevOps repository git url into its parts'''
         # examples:
-        # https://dev.azure.com/colbylwilliams/MyProject/_git/az-bake
+        # https://dev.azure.com/rogerbestmsft/MyProject/_git/az-bake
         # https://colbylwilliams.visualstudio.com/DefaultCollection/MyProject/_git/az-bake
-        # https://colbylwilliams@dev.azure.com/colbylwilliams/MyProject/_git/az-bake
+        # https://colbylwilliams@dev.azure.com/rogerbestmsft/MyProject/_git/az-bake
 
         url = url.lower().replace('git@ssh', 'https://').replace(':v3/', '/')
 
@@ -116,8 +116,8 @@ class Repo:
     def _parse_github_url(self, url):
         '''Parse a GitHub repository git url into its parts'''
         # examples:
-        # git://github.com/colbylwilliams/az-bake.git
-        # https://github.com/colbylwilliams/az-bake.git
+        # git://github.com/rogerbestmsft/az-bake.git
+        # https://github.com/rogerbestmsft/az-bake.git
         # git@github.com:colbylwilliams/az-bake.git
 
         url = url.lower().replace('git@', 'https://').replace('git://', 'https://')\
@@ -154,12 +154,12 @@ class Repo:
 if __name__ == '__main__':
 
     test_urls = [
-        'git://github.com/colbylwilliams/az-bake.git',
-        'https://github.com/colbylwilliams/az-bake.git',
-        'git@github.com:colbylwilliams/az-bake.git',
-        'https://dev.azure.com/colbylwilliams/MyProject/_git/az-bake',
-        'https://colbylwilliams.visualstudio.com/DefaultCollection/MyProject/_git/az-bake',
-        'https://user@dev.azure.com/colbylwilliams/MyProject/_git/az-bake'
+        'git://github.com/rogerbestmsft/az-bake.git',
+        'https://github.com/rogerbestmsft/az-bake.git',
+        'git@github.com:rogerbestmsft/az-bake.git',
+        'https://dev.azure.com/rogerbestmsft/MyProject/_git/az-bake',
+        'https://rogerbestmsft.visualstudio.com/DefaultCollection/MyProject/_git/az-bake',
+        'https://user@dev.azure.com/rogerbestmsft/MyProject/_git/az-bake'
     ]
 
     print('')
@@ -168,7 +168,7 @@ if __name__ == '__main__':
         repository = Repo(url=test, token='mytoken')
         if repository.provider not in [GITHUB_PROVIDER_NAME, DEVOPS_PROVIDER_NAME]:
             raise CLIError(f'{repository.provider} is not a valid provider')
-        if repository.org != 'colbylwilliams':
+        if repository.org != 'rogerbestmsft':
             raise CLIError(f'{repository.org} is not a valid organization')
         if repository.provider == DEVOPS_PROVIDER_NAME and repository.project != 'myproject':
             raise CLIError(f'{repository.project} is not a valid project')

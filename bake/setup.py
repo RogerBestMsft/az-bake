@@ -17,7 +17,7 @@ except ImportError:
     logger.warn("Wheel is not available, disabling bdist_wheel hook")
 
 # Must match a HISTORY.rst entry.
-VERSION = '0.3.11'
+VERSION = '0.3.20'
 
 # The full list of classifiers is available at
 # https://pypi.python.org/pypi?%3Aaction=list_classifiers
@@ -49,8 +49,8 @@ setup(
     description='Microsoft Azure Command-Line Tools Custom Image Helper Extension',
     license='MIT',
     author='Microsoft Corporation',
-    author_email='colbyw@microsoft.com',
-    url='https://github.com/colbylwilliams/az-bake',
+    author_email='rbest@microsoft.com',
+    url='https://github.com/rogerbestmsft/az-bake',
     long_description=README + '\n\n' + HISTORY,
     classifiers=CLASSIFIERS,
     packages=find_packages(),

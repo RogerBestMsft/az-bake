@@ -3,6 +3,7 @@
 # Licensed under the MIT License.
 # ------------------------------------
 # pylint: disable=logging-fstring-interpolation, protected-access, inconsistent-return-statements, raise-missing-from
+# pylint: disable=too-many-arguments, too-many-locals
 
 import json
 
@@ -34,14 +35,20 @@ def is_bicep_file(file_path):
     return file_path.lower().endswith(".bicep")
 
 
+# pylint: disable=too-many-positional-arguments
 def deploy_arm_template_at_resource_group(cmd, resource_group_name=None, template_file=None,
                                           template_uri=None, parameters=None, no_wait=False):
 
     from azure.cli.command_modules.resource.custom import JsonCTemplatePolicy, _prepare_deployment_properties_unmodified
 
     properties = _prepare_deployment_properties_unmodified(cmd, 'resourceGroup', template_file=template_file,
-                                                           template_uri=template_uri, parameters=parameters,
-                                                           mode='Incremental')
+                                                           template_uri=template_uri,
+                                                           parameters=parameters,
+                                                           mode='Incremental',
+                                                           rollback_on_error=None,
+                                                           no_prompt=False,
+                                                           template_spec=None, query_string=None)
+
     smc = cf_resources(cmd.cli_ctx)
     client = smc.deployments
 
@@ -245,32 +252,38 @@ def image_version_exists(cmd, resource_group_name: str, gallery_name: str, galle
     version = get_image_version(cmd, resource_group_name, gallery_name, gallery_image_name, gallery_image_version_name)
     return version is not None
 
-# pylint: disable=unused-argument, unused-variable
 
-
+# pylint: disable=too-many-positional-arguments,disable=unused-argument, unused-variable, disable=too-many-locals
 def create_image_definition(cmd, resource_group_name, gallery_name, gallery_image_name, publisher, offer, sku,
                             location=None, os_type='Windows', os_state='Generalized', end_of_life_date=None,
-                            description=None, tags=None):
+                            description=None, tags=None, hibernate=False, plan_name=None, plan_publisher=None,
+                            plan_product=None):
     logger.info(f'Creating image definition {gallery_image_name} in gallery {gallery_name} ...')
 
     if location is None:
         location = get_gallery(cmd, resource_group_name, gallery_name).location
 
     client = cf_compute(cmd.cli_ctx)
-    # GalleryImage, GalleryImageIdentifier, RecommendedMachineConfiguration, ResourceRange, Disallowed, \
-    # ImagePurchasePlan, GalleryImageFeature = cmd.get_models(
-    #     'GalleryImage', 'GalleryImageIdentifier', 'RecommendedMachineConfiguration', 'ResourceRange',
-    #     'Disallowed', 'ImagePurchasePlan', 'GalleryImageFeature',
-    #     resource_type=ResourceType.MGMT_COMPUTE, operation_group='galleries')
-    GalleryImage, GalleryImageIdentifier, Disallowed, GalleryImageFeature = cmd.get_models(
-        'GalleryImage', 'GalleryImageIdentifier', 'Disallowed', 'GalleryImageFeature',
-        resource_type=ResourceType.MGMT_COMPUTE, operation_group='galleries')
 
-    purchase_plan = None
-    # if any([plan_name, plan_publisher, plan_product]):
-    #     purchase_plan = ImagePurchasePlan(name=plan_name, publisher=plan_publisher, product=plan_product)
+    if ([plan_name, plan_publisher, plan_product]) is None:
+        GalleryImage, GalleryImageIdentifier, Disallowed, GalleryImageFeature = cmd.get_models(
+            'GalleryImage', 'GalleryImageIdentifier', 'Disallowed', 'GalleryImageFeature',
+            resource_type=ResourceType.MGMT_COMPUTE, operation_group='galleries')
+
+        purchase_plan = None
+    else:
+
+        GalleryImage, GalleryImageIdentifier, RecommendedMachineConfiguration, ResourceRange, Disallowed, \
+            ImagePurchasePlan, GalleryImageFeature = cmd.get_models(
+                'GalleryImage', 'GalleryImageIdentifier', 'RecommendedMachineConfiguration', 'ResourceRange',
+                'Disallowed', 'ImagePurchasePlan', 'GalleryImageFeature',
+                resource_type=ResourceType.MGMT_COMPUTE, operation_group='galleries')
+
+        purchase_plan = ImagePurchasePlan(name=plan_name, publisher=plan_publisher, product=plan_product)
+
     feature_list = [
-        GalleryImageFeature(name='SecurityType', value='TrustedLaunch')
+        GalleryImageFeature(name='SecurityType', value='TrustedLaunch'),
+        GalleryImageFeature(name='IsHibernateSupported', value=hibernate)
     ]
 
     image = GalleryImage(identifier=GalleryImageIdentifier(publisher=publisher, offer=offer, sku=sku),

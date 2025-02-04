@@ -26,6 +26,7 @@ REPO_DIR = Path(AZ_BAKE_REPO_VOLUME) if IN_BUILDER else Path(__file__).resolve()
 STORAGE_DIR = Path(AZ_BAKE_STORAGE_VOLUME) if IN_BUILDER else REPO_DIR / '.local' / 'storage'
 
 OUTPUT_DIR = STORAGE_DIR / (timestamp if IN_BUILDER else 'lastrun')
+LOCAL_USER_DIR = 'C:/Users/Public/Documents'
 
 if IN_BUILDER:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -118,7 +119,7 @@ PKR_PROVISIONER_RESTART = f'''
   }}
   {BAKE_PLACEHOLDER}'''
 
-PKR_PROVISIONER_CHOCO = f'''
+PKR_PROVISIONER_CHOCO_INSTALL = f'''
   # Injected by az bake
   provisioner "powershell" {{
     environment_vars = ["chocolateyUseWindowsCompression=false"]
@@ -127,44 +128,35 @@ PKR_PROVISIONER_CHOCO = f'''
       "& C:/Windows/Temp/chocolatey.ps1"
     ]
   }}
+  {BAKE_PLACEHOLDER}'''
 
-  # Injected by az bake
-  provisioner "file" {{
-    source = "${{path.root}}/{CHOCO_PACKAGES_CONFIG_FILE}"
-    destination = "C:/Windows/Temp/{CHOCO_PACKAGES_CONFIG_FILE}"
-  }}
-
-  # Injected by az bake
-  provisioner "powershell" {{
-    elevated_user     = build.User
-    elevated_password = build.Password
-    inline = [
-      "choco install C:/Windows/Temp/{CHOCO_PACKAGES_CONFIG_FILE} --yes --no-progress"
-    ]
-  }}
-
+PKR_PROVISIONER_CHOCO_MACHINE_INSTALL_LOG = f'''
   # Injected by az bake
   provisioner "file" {{
     source = "C:/ProgramData/chocolatey/logs/chocolatey.log"
     destination = "{OUTPUT_DIR}/chocolatey.log"
     direction = "download"
   }}
-  {BAKE_PLACEHOLDER}'''
+{BAKE_PLACEHOLDER}'''
 
-PKR_PROVISIONER_CHOCO_USER = f'''
-  # Injected by az bake
-  provisioner "file" {{
-    source = "${{path.root}}/{CHOCO_PACKAGES_USER_CONFIG_FILE}"
-    destination = "C:/Windows/Temp/{CHOCO_PACKAGES_USER_CONFIG_FILE}"
-  }}
 
+PKR_PROVISIONER_CONSENTBEHAVIOR_LOWER = f'''
   # Injected by az bake
   provisioner "powershell" {{
     elevated_user     = build.User
     elevated_password = build.Password
     inline = [
-      "New-Item -Path 'HKLM:\\\\SOFTWARE\\\\Microsoft\\\\Active Setup\\\\Installed Components' -Name '7cc2318a-b226-4fdd-84c6-31e5f4dd9e4f' -Value 'Install Chocolatey Packages'",
-      "New-ItemProperty 'HKLM:\\\\SOFTWARE\\\\Microsoft\\\\Active Setup\\\\Installed Components\\\\7cc2318a-b226-4fdd-84c6-31e5f4dd9e4f' -Name StubPath -Value 'choco install C:/Windows/Temp/{CHOCO_PACKAGES_USER_CONFIG_FILE} --yes --no-progress'"
+      "Set-ItemProperty 'HKLM:\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Policies\\\\System' -Name ConsentPromptBehaviorAdmin -Value 0 -type DWORD"
+    ]
+  }}
+{BAKE_PLACEHOLDER}'''
+
+PKR_PROVISIONER_CHOCO_USER_INSTALL_SCRIPT = f'''
+  # Injected by az bake
+  provisioner "powershell" {{
+    inline = [
+      "(new-object net.webclient).DownloadFile('https://github.com/RogerBestMsft/az-bake/blob/AddPurchPlan/examples/scripts/Install-ChocoUser.ps1', 'C:/Users/Public/Documents/Install-ChocoUser.ps1')",
+      "(new-object net.webclient).DownloadFile('https://github.com/RogerBestMsft/az-bake/blob/AddPurchPlan/examples/scripts/Reset-AdminConsentBehavior.ps1', 'C:/Users/Public/Documents/Reset-AdminConsentBehavior.ps1')",
     ]
   }}
   {BAKE_PLACEHOLDER}'''
@@ -255,7 +247,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --dir ${{ runner.temp }} --repo github.com/colbylwilliams/az-bake --pattern index.json
+          gh release download --dir ${{ runner.temp }} --repo github.com/rogerbestmsft/az-bake --pattern index.json
           az extension add --yes --source $(jq -r '.extensions.bake[0].downloadUrl' ${{ runner.temp }}/index.json)
 
       - name: Run az bake
@@ -291,7 +283,7 @@ steps:
       AZURE_TENANT_ID: $(AZURE_TENANT_ID)
 
   - script: | # get the latest version of az bake from the github releases and install it
-      curl -L https://github.com/colbylwilliams/az-bake/releases/latest/download/index.json > $AGENT_TEMPDIRECTORY/index.json
+      curl -L https://github.com/rogerbestmsft/az-bake/releases/latest/download/index.json > $AGENT_TEMPDIRECTORY/index.json
       az extension add --yes --source $(jq -r '.extensions.bake[0].downloadUrl' $AGENT_TEMPDIRECTORY/index.json)
     displayName: Install az bake
 
@@ -302,8 +294,8 @@ steps:
 '''
 
 
-BAKE_YAML_SCHEMA = '# yaml-language-server: $schema=https://github.com/colbylwilliams/az-bake/releases/latest/download/bake.schema.json'
-IMAGE_YAML_SCHEMA = '# yaml-language-server: $schema=https://github.com/colbylwilliams/az-bake/releases/latest/download/image.schema.json'
+BAKE_YAML_SCHEMA = '# yaml-language-server: $schema=https://github.com/rogerbestmsft/az-bake/releases/latest/download/bake.schema.json'
+IMAGE_YAML_SCHEMA = '# yaml-language-server: $schema=https://github.com/rogerbestmsft/az-bake/releases/latest/download/image.schema.json'
 
 
 IMAGE_YAML_COMMENTS = '''#  Required properties: (some may also be set in the images section of the bake.yaml file)

@@ -24,11 +24,14 @@ from ._constants import (BAKE_YAML_SCHEMA, DEVOPS_PIPELINE_CONTENT, DEVOPS_PIPEL
                          IMAGE_DEFAULT_BASE_WINDOWS, IMAGE_YAML_SCHEMA, IN_BUILDER)
 from ._data import Gallery, Image, Sandbox, get_dict
 from ._github import get_github_latest_release_version, get_github_release, get_release_templates, get_template_url
-from ._packer import (copy_packer_files, inject_choco_provisioners, inject_powershell_provisioner,
+from ._packer import (copy_packer_files, inject_choco_install_provisioners,
+                      inject_choco_machine_provisioners, inject_choco_user_script_provisioners,
+                      inject_choco_user_provisioners, inject_choco_machine_log_provisioners,
+                      inject_powershell_provisioner, inject_choco_user_consent_provisioners,
                       inject_update_provisioner, packer_execute, save_packer_vars_file)
 from ._repos import Repo
 from ._sandbox import get_builder_subnet_id, get_sandbox_resource_names
-from ._utils import (copy_to_builder_output_dir, get_choco_package_config, get_install_choco_packages,
+from ._utils import (copy_to_builder_output_dir, get_install_choco_packages,
                      get_install_powershell_scripts, get_logger, get_templates_path)
 
 logger = get_logger(__name__)
@@ -41,6 +44,7 @@ logger = get_logger(__name__)
 # bake sandbox
 # ----------------
 
+# pylint: disable=too-many-positional-arguments
 def bake_sandbox_create(cmd, location, name_prefix, sandbox_resource_group_name=None, gallery_resource_id=None,
                         tags=None, principal_id=None, vnet_address_prefix='10.0.0.0/24',
                         default_subnet_name='default', default_subnet_address_prefix='10.0.0.0/25',
@@ -124,6 +128,7 @@ def bake_sandbox_validate(cmd, sandbox_resource_group_name: str, gallery_resourc
 # bake repo
 # ----------------
 
+# pylint: disable=too-many-positional-arguments
 def bake_repo_build(cmd, repository_path, image_names: Sequence[str] = None, sandbox: Sandbox = None,
                     gallery: Gallery = None, images: Sequence[Image] = None, repository_url: str = None,
                     repository_token: str = None, repository_revision: str = None, repo: Repo = None):
@@ -201,6 +206,7 @@ def bake_repo_validate(cmd, repository_path, sandbox: Sandbox = None, gallery: G
     logger.info('Validating repository')
 
 
+# pylint: disable=too-many-positional-arguments
 def bake_repo_setup(cmd, sandbox_resource_group_name: str, gallery_resource_id: str, repository_path='./',
                     repository_provider: str = None, sandbox: Sandbox = None, gallery: Gallery = None):
     logger.info('Setting up repository')
@@ -282,6 +288,7 @@ def bake_image_logs(cmd, sandbox_resource_group_name, image_name, sandbox: Sandb
     print(log.content)
 
 
+# pylint: disable=too-many-positional-arguments
 def bake_image_bump(cmd, repository_path='./', image_names: Sequence[str] = None, images: Sequence[Image] = None,
                     major: bool = False, minor: bool = False):
     logger.info('Bumping image version')
@@ -294,7 +301,7 @@ def bake_image_bump(cmd, repository_path='./', image_names: Sequence[str] = None
         version_old = parse_version(version)
 
         if len(version_old.release) != 3:
-            raise CLIError(f'Version must be in the format major.minro.patch (found: {version})')
+            raise CLIError(f'Version must be in the format major.minor.patch (found: {version})')
 
         n_major = version_old.major + 1 if major else version_old.major
         n_minor = 0 if major else version_old.minor + 1 if minor else version_old.minor
@@ -322,6 +329,7 @@ def bake_image_bump(cmd, repository_path='./', image_names: Sequence[str] = None
 # bake yaml
 # ----------------
 
+# pylint: disable=too-many-positional-arguments
 def bake_yaml_export(cmd, sandbox_resource_group_name, gallery_resource_id,
                      sandbox: Sandbox = None, gallery: Gallery = None, images: Sequence[Image] = None,
                      outfile='./bake.yml', outdir=None, stdout=False):
@@ -418,9 +426,20 @@ def bake_builder_build(cmd, sandbox: Sandbox = None, gallery: Gallery = None, im
 
     definition = get_image_definition(cmd, gallery.resource_group, gallery.name, image.name)
     if not definition:
-        logger.info(f'Image definition {image.name} does not exist. Creating...')
-        definition = create_image_definition(cmd, gallery.resource_group, gallery.name, image.name,
-                                             image.publisher, image.offer, image.sku, gallery_res.location)
+        if image.plan is None:
+            definition = create_image_definition(
+                cmd, gallery.resource_group, gallery.name, image.name,
+                image.publisher, image.offer, image.sku, gallery_res.location,
+                hibernate=image.hibernate
+            )
+        else:
+            definition = create_image_definition(
+                cmd, gallery.resource_group, gallery.name, image.name,
+                image.publisher, image.offer, image.sku, gallery_res.location,
+                hibernate=image.hibernate, plan_name=image.plan.name,
+                plan_product=image.plan.product, plan_publisher=image.plan.publisher
+            )
+
     elif image_version_exists(cmd, gallery.resource_group, gallery.name, image.name, image.version):
         raise CLIError('Image version already exists')
 
@@ -436,15 +455,20 @@ def bake_builder_build(cmd, sandbox: Sandbox = None, gallery: Gallery = None, im
 
         choco_packages = get_install_choco_packages(image)
 
-        user_choco_packages = [package for package in choco_packages if package.user]
-        if user_choco_packages:
-            choco_user_config = get_choco_package_config(user_choco_packages)
-            inject_choco_provisioners(image.dir, choco_user_config, for_user=True)
+        # install choco packages if packages
+        if choco_packages:
+            inject_choco_install_provisioners(image.dir)
 
-        machine_choco_packages = [package for package in choco_packages if not package.user]
-        if machine_choco_packages:
-            machine_choco_config = get_choco_package_config(machine_choco_packages)
-            inject_choco_provisioners(image.dir, machine_choco_config, for_user=False)
+            machine_choco_packages = [package for package in choco_packages if not package.user]
+            if machine_choco_packages:
+                inject_choco_machine_provisioners(image.dir, machine_choco_packages)
+                inject_choco_machine_log_provisioners(image.dir)
+
+            user_choco_packages = [package for package in choco_packages if package.user]
+            if user_choco_packages:
+                inject_choco_user_script_provisioners(image.dir)
+                inject_choco_user_consent_provisioners(image.dir)
+                inject_choco_user_provisioners(image.dir, user_choco_packages)
 
         # winget_config = get_install_winget(image)
         # if winget_config:
@@ -468,6 +492,7 @@ def bake_builder_build(cmd, sandbox: Sandbox = None, gallery: Gallery = None, im
 # _private
 # ----------------
 
+# pylint: disable=too-many-positional-arguments
 def _bake_yaml_export(sandbox: Sandbox = None, gallery: Gallery = None, images: Sequence[Image] = None,
                       outfile=None, outdir=None, stdout=False):
     logger.info('Exporting bake.yaml file')
