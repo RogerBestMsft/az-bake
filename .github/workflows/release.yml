@@ -87,12 +87,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: downcase REPO
+        run: |
+          echo "REPO=${GITHUB_REPOSITORY@L}" >> "${IMAGE_REPOSITORY}"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         env:
           BUILD_DATE: ${{ steps.build_date.outputs.date }}
           IMAGE_VERSION: ${{ steps.cli_version.outputs.version }}
-          IMAGE_REPOSITORY: ${{ github.repository }}
+          #IMAGE_REPOSITORY: ${{ github.repository }}
         with:
           context: ./builder
           # file: ./builder/Dockerfile
