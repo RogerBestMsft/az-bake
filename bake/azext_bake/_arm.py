@@ -3,6 +3,7 @@
 # Licensed under the MIT License.
 # ------------------------------------
 # pylint: disable=logging-fstring-interpolation, protected-access, inconsistent-return-statements, raise-missing-from
+# pylint: disable=too-many-arguments, too-many-locals
 
 import json
 
@@ -45,7 +46,7 @@ def deploy_arm_template_at_resource_group(cmd, resource_group_name=None, templat
                                                            parameters=parameters,
                                                            mode='Incremental',
                                                            rollback_on_error=None,
-                                                           no_prompt=None,
+                                                           no_prompt=False,
                                                            template_spec=None, query_string=None)
 
     smc = cf_resources(cmd.cli_ctx)
@@ -255,7 +256,8 @@ def image_version_exists(cmd, resource_group_name: str, gallery_name: str, galle
 # pylint: disable=too-many-positional-arguments,disable=unused-argument, unused-variable, disable=too-many-locals
 def create_image_definition(cmd, resource_group_name, gallery_name, gallery_image_name, publisher, offer, sku,
                             location=None, os_type='Windows', os_state='Generalized', end_of_life_date=None,
-                            description=None, tags=None, plan_name=None, plan_publisher=None, plan_product=None):
+                            description=None, tags=None, hibernate=False, plan_name=None, plan_publisher=None,
+                            plan_product=None):
     logger.info(f'Creating image definition {gallery_image_name} in gallery {gallery_name} ...')
 
     if location is None:
@@ -280,7 +282,8 @@ def create_image_definition(cmd, resource_group_name, gallery_name, gallery_imag
         purchase_plan = ImagePurchasePlan(name=plan_name, publisher=plan_publisher, product=plan_product)
 
     feature_list = [
-        GalleryImageFeature(name='SecurityType', value='TrustedLaunch')
+        GalleryImageFeature(name='SecurityType', value='TrustedLaunch'),
+        GalleryImageFeature(name='IsHibernateSupported', value=hibernate)
     ]
 
     image = GalleryImage(identifier=GalleryImageIdentifier(publisher=publisher, offer=offer, sku=sku),
