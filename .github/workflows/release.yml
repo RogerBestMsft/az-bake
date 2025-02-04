@@ -89,7 +89,7 @@ jobs:
 
       - name: downcase REPO
         run: |
-          echo "REPO=${github.repository@L}" >> "${IMAGE_REPOSITORY}"
+        echo "IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
