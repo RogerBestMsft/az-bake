@@ -35,7 +35,7 @@ LABEL maintainer="Microsoft" \
     org.label-schema.docker.cmd="docker run ghcr.io/rogerbestmsft/az-bake/builder:$IMAGE_VERSION"
 
 # install packer
-RUN apk add --no-cache packer --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
+RUN apk add --no-cache packer --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community
 
 # install az-bake
 RUN az extension add --source https://github.com/rogerbestmsft/az-bake/releases/latest/download/bake-0.3.20-py3-none-any.whl -y
