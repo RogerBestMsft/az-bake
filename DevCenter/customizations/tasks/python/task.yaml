@@ -1,0 +1,8 @@
+$schema: 1.0
+tasks:
+  - name: install-python
+    description: Install Python 3.11
+    parameters:
+      command: winget
+      packageId: Python.Python.3.11
+      runAsUser: true

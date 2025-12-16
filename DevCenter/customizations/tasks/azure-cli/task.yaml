@@ -1,0 +1,8 @@
+$schema: 1.0
+tasks:
+  - name: install-azure-cli
+    description: Install Azure CLI
+    parameters:
+      command: winget
+      packageId: Microsoft.AzureCLI
+      runAsUser: true

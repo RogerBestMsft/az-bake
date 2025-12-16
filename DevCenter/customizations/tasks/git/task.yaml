@@ -1,0 +1,8 @@
+$schema: 1.0
+tasks:
+  - name: install-git
+    description: Install and configure Git for source control
+    parameters:
+      command: winget
+      packageId: Git.Git
+      runAsUser: true

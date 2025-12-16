@@ -1,0 +1,8 @@
+$schema: 1.0
+tasks:
+  - name: install-github-cli
+    description: Install GitHub CLI
+    parameters:
+      command: winget
+      packageId: GitHub.cli
+      runAsUser: true

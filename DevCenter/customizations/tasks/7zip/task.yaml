@@ -1,0 +1,8 @@
+$schema: 1.0
+tasks:
+  - name: install-7zip
+    description: Install 7-Zip archive utility
+    parameters:
+      command: winget
+      packageId: 7zip.7zip
+      runAsUser: true

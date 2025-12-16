@@ -1,0 +1,8 @@
+$schema: 1.0
+tasks:
+  - name: install-vs-build-tools
+    description: Install Visual Studio Build Tools for native compilation
+    parameters:
+      command: choco
+      packageId: visualstudio2019buildtools
+      runAsUser: false

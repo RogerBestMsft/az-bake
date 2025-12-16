@@ -1,0 +1,15 @@
+$schema: 1.0
+tasks:
+  - name: setup-dev-environment
+    description: Set up Python virtual environment and configure Azure CLI extension development
+    parameters:
+      command: powershell
+      script: |
+        Set-Location C:\workspaces\az-bake
+        python -m venv .venv
+        .\.venv\Scripts\Activate.ps1
+        pip install --upgrade pip
+        pip install -e .\bake
+        pip install azdev
+        azdev setup -r . -e bake
+      runAsUser: true

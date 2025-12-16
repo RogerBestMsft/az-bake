@@ -1,0 +1,8 @@
+$schema: 1.0
+tasks:
+  - name: install-nodejs
+    description: Install Node.js LTS
+    parameters:
+      command: winget
+      packageId: OpenJS.NodeJS.LTS
+      runAsUser: true

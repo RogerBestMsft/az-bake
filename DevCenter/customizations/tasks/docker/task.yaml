@@ -1,0 +1,8 @@
+$schema: 1.0
+tasks:
+  - name: install-docker
+    description: Install Docker Desktop for Windows
+    parameters:
+      command: winget
+      packageId: Docker.DockerDesktop
+      runAsUser: true

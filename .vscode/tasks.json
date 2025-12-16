@@ -13,7 +13,7 @@
             "label": "azdev: linter",
             "command": "source .venv/bin/activate; azdev linter bake",
             "windows": {
-                "command": ".venv\\bin\\activate; azdev linter bake"
+                "command": ".venv${pathSeparator}bin${pathSeparator}activate; azdev linter bake"
             },
             "icon": {
                 "id": "azure",
@@ -24,7 +24,7 @@
             "label": "azdev: style",
             "command": "source .venv/bin/activate; azdev style bake",
             "windows": {
-                "command": ".venv\\bin\\activate; azdev style bake"
+                "command": ".venv${pathSeparator}bin\\activate; azdev style bake"
             },
             "icon": {
                 "id": "azure",
@@ -36,7 +36,7 @@
             "detail": "Setup the cli extension development environment",
             "command": "source .venv/bin/activate; azdev setup -r ${workspaceFolder} -e bake",
             "windows": {
-                "command": ".venv\\bin\\activate; azdev setup -r ${workspaceFolder} -e bake"
+                "command": ".venv${pathSeparator}bin${pathSeparator}activate; azdev setup -r ${workspaceFolder} -e bake"
             },
             "dependsOrder": "sequence",
             "dependsOn": [
@@ -52,7 +52,7 @@
             "label": "azdev: install",
             "command": "source .venv/bin/activate; pip3 install azdev",
             "windows": {
-                "command": ".venv\\bin\\activate; pip3 install azdev"
+                "command": ".venv${pathSeparator}bin\\activate; pip3 install azdev"
             },
             "icon": {
                 "id": "azure",
@@ -100,8 +100,8 @@
             "command": "docker",
             "args": [
                 "push",
-                // "ghcr.io/${input:imageRepository}/builder:latest"
-                "ghcr.io/rogerbestmsft/az-bake/builder:latest"
+                "ghcr.io/${input:imageRepository}/builder:latest"
+                //"ghcr.io/rogerbestmsft/az-bake/builder:latest"
             ],
             "dependsOn": [
                 "docker: push"
@@ -116,8 +116,7 @@
             "command": "docker",
             "args": [
                 "push",
-                // "ghcr.io/${input:imageRepository}/builder:${input:imageTagVersion}"
-                "ghcr.io/rogerbestmsft/az-bake/builder:${input:imageTagVersion}"
+                "ghcr.io/${input:imageRepository}/builder:${input:imageTagVersion}"
             ],
             "icon": {
                 "id": "rocket",
@@ -130,10 +129,8 @@
             "dockerBuild": {
                 "context": "${workspaceFolder}${pathSeparator}builder",
                 "dockerfile": "${workspaceFolder}${pathSeparator}builder${pathSeparator}Dockerfile",
-                // "tag": "ghcr.io/${input:imageRepository}/builder:${input:imageTagVersion}",
-                // "customOptions": "-t \"ghcr.io/${input:imageRepository}/builder:latest\"",
-                "tag": "ghcr.io/rogerbestmsft/az-bake/builder:${input:imageTagVersion}",
-                "customOptions": "-t \"ghcr.io/rogerbestmsft/az-bake/builder:latest\"",
+                "tag": "ghcr.io/${input:imageRepository}/builder:${input:imageTagVersion}",
+                "customOptions": "-t \"ghcr.io/${input:imageRepository}/builder:latest\"",
                 "buildArgs": {
                     "IMAGE_VERSION": "${input:imageTagVersion}"
                 },
