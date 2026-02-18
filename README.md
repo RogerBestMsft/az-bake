@@ -9,7 +9,7 @@ Microsoft Azure CLI Extension for creating (or _"baking"_) custom virtual machin
 To install the Azure CLI Custom Image Helper extension, simply run the following command:
 
 ```sh
-az extension add --source https://github.com/rogerbestmsft/az-bake/releases/latest/download/bake-0.3.20-py3-none-any.whl -y
+az extension add --source https://github.com/rogerbestmsft/az-bake/releases/latest/download/bake-0.3.21-py3-none-any.whl -y
 ```
 
 ### Update
@@ -1151,6 +1151,10 @@ Version (tag). Default: latest stable.
 
   Increase logging verbosity. Use --debug for full debug logs.
 </details>
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for instructions on setting up a development environment and contributing to this project.
 
 [install-az]: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
 [azure-identities]: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview

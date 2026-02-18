@@ -41,6 +41,10 @@ def deploy_arm_template_at_resource_group(cmd, resource_group_name=None, templat
 
     from azure.cli.command_modules.resource.custom import JsonCTemplatePolicy, _prepare_deployment_properties_unmodified
 
+    # Ensure the command has the correct resource_type so that
+    # _prepare_deployment_properties_unmodified can resolve API models.
+    cmd.command_kwargs['resource_type'] = ResourceType.MGMT_RESOURCE_RESOURCES
+
     properties = _prepare_deployment_properties_unmodified(cmd, 'resourceGroup', template_file=template_file,
                                                            template_uri=template_uri,
                                                            parameters=parameters,
