@@ -26,7 +26,7 @@ class CI:
     def is_ci():
         is_actions = os.environ.get('CI', False) and os.environ.get('GITHUB_ACTION', False)
         is_devops = os.environ.get('TF_BUILD', False)
-        return is_actions or is_devops
+        return bool(is_actions or is_devops)
 
     def __init__(self) -> None:
         if os.environ.get('CI', False) and os.environ.get('GITHUB_ACTION', False):

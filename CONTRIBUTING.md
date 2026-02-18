@@ -273,6 +273,39 @@ The project comes with pre-configured VS Code tasks. Open the Command Palette (`
 
 ## Testing
 
+### Automated Tests
+
+The project uses **pytest** for automated testing. Tests live in `bake/tests/` and cover data models, URL parsing, validators, and integration scenarios.
+
+```bash
+# Install the extension with test dependencies
+pip install -e ./bake[dev]
+
+# Run all tests
+cd bake
+pytest tests/ -v
+
+# Run with coverage report
+pytest tests/ -v --cov=azext_bake --cov-report=term-missing
+
+# Run a specific test file
+pytest tests/test_data.py -v
+
+# Run a specific test class or function
+pytest tests/test_repos.py::TestRepoGitHub -v
+```
+
+Tests are also run automatically on every push and pull request via the GitHub Actions CI workflow (`.github/workflows/ci.yml`).
+
+#### Writing New Tests
+
+- Add test files to `bake/tests/` following the `test_<module>.py` naming convention
+- Use fixtures from `conftest.py` for common objects (`mock_cmd`, `sample_sandbox_dict`, `tmp_repo`, etc.)
+- For Azure SDK calls, use `unittest.mock.patch` to mock client factories in `_client_factory.py`
+- No Azure credentials are needed — all external calls should be mocked
+
+### Manual Testing
+
 After making changes, test the extension locally:
 
 ```bash
