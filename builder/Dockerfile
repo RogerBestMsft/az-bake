@@ -38,7 +38,7 @@ LABEL maintainer="Microsoft" \
 RUN tdnf install -y packer
 
 # install az-bake
-RUN az extension add --source https://github.com/rogerbestmsft/az-bake/releases/latest/download/bake-0.3.20-py3-none-any.whl -y
+RUN az extension add --source https://github.com/rogerbestmsft/az-bake/releases/latest/download/bake-0.3.21-py3-none-any.whl -y
 
 # Terminate container on stop
 STOPSIGNAL SIGTERM

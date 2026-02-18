@@ -3,6 +3,10 @@
 Release History
 ===============
 
+0.3.21
+++++++
+* Bug fixes and minor improvements
+
 0.3.20
 ++++++
 * Adding plan information from image definition, choco restart, and choco user.
