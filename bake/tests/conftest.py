@@ -9,6 +9,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 # Stub out azure.cli.command_modules and its submodules so that the
 # azext_bake import chain (→ _params → _validators → _sandbox → _arm)
 # does not fail when azure-cli is not fully installed (e.g. in CI).
@@ -18,8 +20,6 @@ for _mod in (
     'azure.cli.command_modules.role.custom',
 ):
     sys.modules.setdefault(_mod, MagicMock())
-
-import pytest
 
 
 @pytest.fixture
