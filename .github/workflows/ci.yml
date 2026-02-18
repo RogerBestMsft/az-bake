@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['**']
+    paths:
+      - 'bake/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'bake/**'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install extension with test dependencies
+        run: pip install -e ./bake[dev]
+
+      - name: Run tests
+        working-directory: bake
+        run: pytest tests/ -v --tb=short --cov=azext_bake --cov-report=term-missing
+
+  lint:
+    name: Linter & Style
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build and lint CLI
+        run: bash ./tools/build-cli.sh

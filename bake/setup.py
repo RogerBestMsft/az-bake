@@ -38,6 +38,11 @@ DEPENDENCIES = [
     'azure-cli-core'
 ]
 
+DEV_DEPENDENCIES = [
+    'pytest>=7.0',
+    'pytest-cov>=4.0',
+]
+
 with open('README.rst', 'r', encoding='utf-8') as f:
     README = f.read()
 with open('HISTORY.rst', 'r', encoding='utf-8') as f:
@@ -55,5 +60,6 @@ setup(
     classifiers=CLASSIFIERS,
     packages=find_packages(),
     install_requires=DEPENDENCIES,
+    extras_require={'dev': DEV_DEPENDENCIES},
     package_data={'azext_bake': ['azext_metadata.json', 'templates/**/*']},
 )
