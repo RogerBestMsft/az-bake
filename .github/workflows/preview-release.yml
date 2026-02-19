@@ -41,8 +41,8 @@ jobs:
         run: |
           BASE_VERSION="${{ steps.cli_version.outputs.version }}"
           SUFFIX="${{ github.event.inputs.suffix }}"
-          SHORT_SHA="${GITHUB_SHA::7}"
-          PREVIEW_VERSION="${BASE_VERSION}${SUFFIX}${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          # PEP 440 valid format: X.Y.Z.devN (e.g. 0.4.0.dev42)
+          PREVIEW_VERSION="${BASE_VERSION}.${SUFFIX}${GITHUB_RUN_NUMBER}"
           echo "version=${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
           echo "Preview version: ${PREVIEW_VERSION}"
 
