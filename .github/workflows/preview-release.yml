@@ -121,5 +121,6 @@ jobs:
           build-args: |
             BUILD_DATE=${{ env.BUILD_DATE }}
             IMAGE_VERSION=${{ env.IMAGE_VERSION }}
+            REPO_URL=https://github.com/${{ github.repository }}
           tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
