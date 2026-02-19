@@ -18,31 +18,28 @@ env:
   IMAGE_REGISTRY: ghcr.io
 
 jobs:
-  preview:
+  build:
     name: Create Preview Release
     if: github.ref_name != 'main'
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - uses: actions/checkout@v3
 
       # Everything added to release_assets will be published as an asset on the release
       - name: Create Assets Directory
-        run: mkdir -p release_assets
+        uses: actions/github-script@v6
+        with:
+          script: await io.mkdirP('release_assets')
 
-      - name: Get base CLI version
-        id: base_version
+      - name: Get CLI Version
+        id: cli_version
         run: python ./tools/cli-version.py
 
       - name: Compute preview version
         id: preview_version
         run: |
-          BASE_VERSION="${{ steps.base_version.outputs.version }}"
+          BASE_VERSION="${{ steps.cli_version.outputs.version }}"
           SUFFIX="${{ github.event.inputs.suffix }}"
           SHORT_SHA="${GITHUB_SHA::7}"
           PREVIEW_VERSION="${BASE_VERSION}${SUFFIX}${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
@@ -64,38 +61,63 @@ jobs:
         id: prepare_assets
         run: python ./tools/prepare-assets.py
 
-      - name: Delete existing preview tag (if any)
-        run: |
-          TAG="v${{ steps.preview_version.outputs.version }}"
-          git push origin ":refs/tags/${TAG}" 2>/dev/null || true
-
       - name: Create Pre-Release
+        id: publish_assets
         uses: actions/github-script@v6
         with:
           script: |
             const fs = require('fs');
 
-            const assets = JSON.parse('${{ steps.prepare_assets.outputs.assets }}');
+            const assets = JSON.parse('${{steps.prepare_assets.outputs.assets}}');
+
             const version = '${{ steps.preview_version.outputs.version }}';
             const branch  = '${{ github.ref_name }}';
-            const tag     = `v${version}`;
 
-            const release = (await github.rest.repos.createRelease({
+            const releaseResult = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: tag,
+              tag_name: 'v' + version,
               target_commitish: '${{ github.sha }}',
-              name: `${tag} (preview)`,
-              body: `Preview build from branch **${branch}** at \`${{ github.sha }}\`.\n\nInstall with:\n\`\`\`bash\naz extension add --source <wheel-url>\n\`\`\``,
-              prerelease: true,
-            })).data;
+              name: 'v' + version + ' (preview)',
+              body: 'Preview build from branch **' + branch + '** at `${{ github.sha }}`.\n\nInstall with:\n```bash\naz extension add --source <wheel-url>\n```',
+              prerelease: true
+            });
 
-            for (const a of assets) {
-              await github.rest.repos.uploadReleaseAsset({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: release.id,
-                name: a.name,
-                data: fs.readFileSync(a.path),
-              });
-            }
+            const release = releaseResult.data;
+
+            assets.forEach(async a => await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              name: a.name,
+              data: fs.readFileSync(a.path)
+            }));
+
+      - name: Get Build Date
+        id: build_date
+        run: BUILD_DATE="`date -u +"%Y-%m-%dT%H:%M:%SZ"`" && echo "date=$BUILD_DATE" >> $GITHUB_OUTPUT
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: downcase REPO
+        run: |
+          echo "IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        env:
+          BUILD_DATE: ${{ steps.build_date.outputs.date }}
+          IMAGE_VERSION: ${{ steps.preview_version.outputs.version }}
+        with:
+          context: ./builder
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            BUILD_DATE=${{ env.BUILD_DATE }}
+            IMAGE_VERSION=${{ env.IMAGE_VERSION }}
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
