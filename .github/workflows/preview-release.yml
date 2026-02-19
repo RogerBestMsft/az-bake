@@ -72,6 +72,8 @@ jobs:
 
             const version = '${{ steps.preview_version.outputs.version }}';
             const branch  = '${{ github.ref_name }}';
+            const wheelName = `bake-${version}-py3-none-any.whl`;
+            const wheelUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${version}/${wheelName}`;
 
             const releaseResult = await github.rest.repos.createRelease({
               owner: context.repo.owner,
@@ -79,7 +81,7 @@ jobs:
               tag_name: 'v' + version,
               target_commitish: '${{ github.sha }}',
               name: 'v' + version + ' (preview)',
-              body: 'Preview build from branch **' + branch + '** at `${{ github.sha }}`.\n\nInstall with:\n```bash\naz extension add --source <wheel-url>\n```',
+              body: `Preview build from branch **${branch}** at \`${{ github.sha }}\`.\n\nInstall with:\n\`\`\`bash\naz extension add --source ${wheelUrl}\n\`\`\``,
               prerelease: true
             });
 
