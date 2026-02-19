@@ -3,6 +3,12 @@
 Release History
 ===============
 
+0.4.0
+++++++
+* Add ``--wait`` flag to ``az bake repo build`` for CI integration: polls container builds, streams logs, emits GitHub Actions annotations, step summary, and GITHUB_OUTPUT.
+* Add ``--follow`` flag to ``az bake image logs`` for real-time log streaming.
+* New ``_ci`` module with container polling, GitHub Actions annotation helpers, and build result reporting.
+
 0.3.21
 ++++++
 * Bug fixes and minor improvements

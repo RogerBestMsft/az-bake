@@ -120,6 +120,8 @@ def load_arguments(self, _):
         c.argument('repository_url', options_list=['--repo-url'], arg_group='Repo', help='Repository url.')
         c.argument('repository_token', options_list=['--repo-token'], arg_group='Repo', help='Repository token.')
         c.argument('repository_revision', options_list=['--repo-revision'], arg_group='Repo', help='Repository revision.')
+        c.argument('wait', options_list=['--wait'], action='store_true', default=False,
+                   help='Wait for all image builds to complete and stream logs. Recommended for CI.')
         # c.ignore('is_ci')
         c.ignore('sandbox')
         c.ignore('gallery')
@@ -171,6 +173,8 @@ def load_arguments(self, _):
     with self.argument_context('bake image logs') as c:
         c.argument('image_name', options_list=['--name', '-n'], help='Name of the image.')
         c.argument('sandbox_resource_group_name', sandbox_resource_group_name_type)
+        c.argument('follow', options_list=['--follow', '-f'], action='store_true', default=False,
+                   help='Stream logs continuously until the build completes.')
         c.ignore('sandbox')
 
     with self.argument_context('bake yaml export') as c:

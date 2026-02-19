@@ -216,11 +216,6 @@ function Install-AzDev {
     Write-Step "Installing compatible setuptools"
     pip install "setuptools==70.0.0" 2>&1 | Out-Null
     Write-Success "setuptools 70.0.0 installed"
-
-    # Install msrestazure (required by the bake extension at runtime)
-    Write-Step "Installing additional dependencies"
-    pip install msrestazure 2>&1 | Out-Null
-    Write-Success "msrestazure installed"
 }
 
 function Initialize-AzDevSetup {

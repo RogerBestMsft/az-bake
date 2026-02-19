@@ -169,10 +169,6 @@ install_azdev() {
     step "Installing compatible setuptools"
     pip install "setuptools==70.0.0" > /dev/null 2>&1
     success "setuptools 70.0.0 installed"
-
-    step "Installing additional dependencies"
-    pip install msrestazure > /dev/null 2>&1
-    success "msrestazure installed"
 }
 
 setup_azdev() {

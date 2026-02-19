@@ -55,6 +55,10 @@ short-summary: Bake images defined in a repo (usually run in CI).
 examples:
   - name: Build all the images in a repo.
     text: az bake repo build --repo .
+  - name: Build images and wait for completion (recommended for CI).
+    text: az bake repo build --repo . --wait
+  - name: Build specific images and wait.
+    text: az bake repo build --repo . --images myImage1 myImage2 --wait
 """
 
 helps['bake repo setup'] = """
@@ -97,6 +101,8 @@ short-summary: Get the logs for an image build.
 examples:
   - name: Get the logs for an image.
     text: az bake image logs --sandbox mySandbox --name myImage
+  - name: Stream logs until the build completes.
+    text: az bake image logs --sandbox mySandbox --name myImage --follow
 """
 
 helps['bake image rebuild'] = """

@@ -131,7 +131,8 @@ def bake_sandbox_validate(cmd, sandbox_resource_group_name: str, gallery_resourc
 # pylint: disable=too-many-positional-arguments
 def bake_repo_build(cmd, repository_path, image_names: Sequence[str] = None, sandbox: Sandbox = None,
                     gallery: Gallery = None, images: Sequence[Image] = None, repository_url: str = None,
-                    repository_token: str = None, repository_revision: str = None, repo: Repo = None):
+                    repository_token: str = None, repository_revision: str = None, repo: Repo = None,
+                    wait: bool = False):
 
     hook = cmd.cli_ctx.get_progress_controller()
     hook.begin()
@@ -197,9 +198,26 @@ def bake_repo_build(cmd, repository_path, image_names: Sequence[str] = None, san
                 with open(github_step_summary, 'a+', encoding='utf-8') as f:
                     f.write('\n'.join(summary))
 
-        deployments.append(deployment)
+        deployments.append({
+            'deployment': deployment,
+            'image_name': image.name,
+            'portal_url': portal,
+        })
 
     hook.end(message=' ')
+
+    if wait:
+        from ._ci import report_results, wait_for_builds
+
+        portal_urls = {d['image_name']: d['portal_url'] for d in deployments}
+        deployed_names = [d['image_name'] for d in deployments]
+
+        results = wait_for_builds(cmd, sandbox.resource_group, deployed_names, portal_urls=portal_urls)
+        failed = report_results(results, repo=repo)
+
+        if failed:
+            failed_names = ', '.join(r.image_name for r in failed)
+            raise CLIError(f'Image build(s) failed: {failed_names}')
 
 
 def bake_repo_validate(cmd, repository_path, sandbox: Sandbox = None, gallery: Gallery = None, images: Sequence[Image] = None):
@@ -277,7 +295,14 @@ def bake_image_create(cmd, image_name, repository_path='./'):
     logger.warning('The image was generated with default values. You should review the file and make any necessary changes.')
 
 
-def bake_image_logs(cmd, sandbox_resource_group_name, image_name, sandbox: Sandbox = None):
+def bake_image_logs(cmd, sandbox_resource_group_name, image_name, sandbox: Sandbox = None, follow: bool = False):
+    if follow:
+        from ._ci import follow_image_logs
+        exit_code = follow_image_logs(cmd, sandbox.resource_group, image_name)
+        if exit_code != 0:
+            raise CLIError(f'Image build failed with exit code {exit_code}')
+        return
+
     container_client = cf_container(cmd.cli_ctx)
     container_group_client = cf_container_groups(cmd.cli_ctx)
     container_group = container_group_client.get(sandbox.resource_group, image_name)
