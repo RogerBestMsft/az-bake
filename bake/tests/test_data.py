@@ -16,6 +16,7 @@ from azext_bake._data import (
     Image,
     ImageBase,
     ImageInstall,
+    ImageInstallActiveSetup,
     ImageInstallChoco,
     ImageInstallScripts,
     ImagePlan,
@@ -190,6 +191,19 @@ class TestChocoDefaults:
         assert d.source is None
         assert d.install_arguments is None
 
+    def test_restart_defaults_false(self):
+        d = ChocoDefaults({})
+        assert d.restart is False
+
+    def test_restart_can_be_set(self):
+        d = ChocoDefaults({'restart': True})
+        assert d.restart is True
+
+    def test_restart_invalid_key_raises(self):
+        # restart is now a declared field, so 'bogusKey' should still raise
+        with pytest.raises(ValidationError, match='invalid property'):
+            ChocoDefaults({'bogusKey': 'val'})
+
 
 class TestChocoPackage:
     def test_basic(self):
@@ -245,6 +259,26 @@ class TestChocoPackage:
         pkg.apply_defaults(defaults)
         assert pkg.install_arguments == '--ia'
 
+    def test_apply_defaults_restart(self):
+        defaults = ChocoDefaults({'restart': True})
+        pkg = ChocoPackage({'id': 'git'})
+        pkg.apply_defaults(defaults)
+        assert pkg.restart is True
+
+    def test_apply_defaults_restart_does_not_override_explicit_true(self):
+        # If a package already has restart=True it should stay True
+        defaults = ChocoDefaults({'restart': True})
+        pkg = ChocoPackage({'id': 'git', 'restart': True})
+        pkg.apply_defaults(defaults)
+        assert pkg.restart is True
+
+    def test_apply_defaults_restart_false_default_does_not_change_package_restart(self):
+        # If defaults.restart is False (default), package restart should stay as-is
+        defaults = ChocoDefaults({})
+        pkg = ChocoPackage({'id': 'git', 'restart': True})
+        pkg.apply_defaults(defaults)
+        assert pkg.restart is True
+
 
 # -------------------------------------------------------
 # ImageInstallChoco
@@ -260,6 +294,41 @@ class TestImageInstallChoco:
     def test_dict_form(self):
         choco = ImageInstallChoco({'packages': [{'id': 'git', 'version': '2.40.0'}]})
         assert choco.packages[0].version == '2.40.0'
+
+    def test_defaults_none_when_absent(self):
+        choco = ImageInstallChoco({'packages': ['git']})
+        assert choco.defaults is None
+
+    def test_defaults_parsed_when_present(self):
+        choco = ImageInstallChoco({
+            'packages': ['git'],
+            'defaults': {'source': 'mychoco', 'installArguments': '--no-progress'},
+        })
+        assert choco.defaults is not None
+        assert choco.defaults.source == 'mychoco'
+        assert choco.defaults.install_arguments == '--no-progress'
+
+
+# -------------------------------------------------------
+# ImageInstallActiveSetup
+# -------------------------------------------------------
+
+class TestImageInstallActiveSetup:
+    def test_basic(self):
+        ias = ImageInstallActiveSetup({'commands': ['cmd1', 'cmd2']})
+        assert ias.commands == ['cmd1', 'cmd2']
+
+    def test_single_command(self):
+        ias = ImageInstallActiveSetup({'commands': ['cmd1']})
+        assert ias.commands == ['cmd1']
+
+    def test_missing_commands_raises(self):
+        with pytest.raises(ValidationError, match='missing required property'):
+            ImageInstallActiveSetup({})
+
+    def test_invalid_key_raises(self):
+        with pytest.raises(ValidationError, match='invalid property'):
+            ImageInstallActiveSetup({'commands': ['cmd1'], 'bogus': 'val'})
 
 
 # -------------------------------------------------------
@@ -412,6 +481,24 @@ class TestImage:
         }
         img = Image(obj, path=image_file)
         assert img.plan.name == 'plan1'
+
+    def test_with_activesetup_section(self, tmp_path):
+        image_dir = tmp_path / 'images' / 'Img'
+        image_dir.mkdir(parents=True)
+        image_file = image_dir / 'image.yml'
+        image_file.touch()
+
+        obj = {
+            'publisher': 'pub', 'offer': 'off', 'replicaLocations': ['eastus'],
+            'sku': 'sku1', 'version': '1.0.0', 'os': 'Windows',
+            'install': {
+                'activesetup': {'commands': ['cmd1', 'cmd2']},
+            },
+        }
+        img = Image(obj, path=image_file)
+        assert img.install is not None
+        assert img.install.activesetup is not None
+        assert img.install.activesetup.commands == ['cmd1', 'cmd2']
 
 
 # -------------------------------------------------------
