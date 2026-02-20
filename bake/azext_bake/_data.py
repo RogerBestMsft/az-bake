@@ -95,6 +95,7 @@ class ChocoDefaults:
     # optional
     source: str = None
     install_arguments: str = None
+    restart: bool = False
 
     def __init__(self, obj: dict, path: Path = None) -> None:
         _validate_data_object(ChocoDefaults, obj, path=path, parent_key='install.choco.defaults')
@@ -137,6 +138,8 @@ class ChocoPackage:
             self.source = defaults.source
         if defaults.install_arguments is not None and self.install_arguments is None:
             self.install_arguments = defaults.install_arguments
+        if defaults.restart and not self.restart:
+            self.restart = defaults.restart
 
 
 @dataclass
@@ -220,7 +223,7 @@ class ImageInstallActiveSetup:
     def __init__(self, obj: dict) -> None:
         _validate_data_object(ImageInstallActiveSetup, obj, parent_key='install.activesetup')
 
-        self.commands = [str]
+        self.commands = obj['commands']
 
 # --------------------------------
 # Image > Install
@@ -241,6 +244,7 @@ class ImageInstall:
         self.scripts = ImageInstallScripts(obj['scripts'], path) if 'scripts' in obj else None
         self.choco = ImageInstallChoco(obj['choco'], path) if 'choco' in obj else None
         self.winget = ImageInstallWinget(obj['winget'], path) if 'winget' in obj else None
+        self.activesetup = ImageInstallActiveSetup(obj['activesetup']) if 'activesetup' in obj else None
 
 
 # --------------------------------
