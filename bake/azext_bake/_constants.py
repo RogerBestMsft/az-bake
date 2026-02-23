@@ -4,6 +4,22 @@
 # ------------------------------------
 # pylint: disable=line-too-long
 
+"""
+Application constants and configuration values.
+
+This module centralizes all constant values used throughout the extension:
+
+- Environment variables for builder container detection
+- File paths for Packer templates and configuration
+- Default values for image definitions (Windows base image)
+- Packer provisioner HCL templates for injection
+- CI/CD workflow templates for GitHub Actions and Azure DevOps
+- YAML schema references for IDE validation support
+
+Path constants are context-aware, resolving differently when running inside
+the builder container vs. during local development.
+"""
+
 import os
 
 from datetime import datetime, timezone
@@ -11,12 +27,16 @@ from pathlib import Path
 
 timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
 
+# Environment variable names used for builder container detection and configuration
 AZ_BAKE_IMAGE_BUILDER = 'AZ_BAKE_IMAGE_BUILDER'
 AZ_BAKE_BUILD_IMAGE_NAME = 'AZ_BAKE_BUILD_IMAGE_NAME'
 AZ_BAKE_IMAGE_BUILDER_VERSION = 'AZ_BAKE_IMAGE_BUILDER_VERSION'
+
+# Mount paths inside the builder container
 AZ_BAKE_REPO_VOLUME = '/mnt/repo'
 AZ_BAKE_STORAGE_VOLUME = '/mnt/storage'
 
+# Detect if we're running inside the builder container
 IN_BUILDER = os.environ.get(AZ_BAKE_IMAGE_BUILDER)
 IN_BUILDER = bool(IN_BUILDER)
 
@@ -37,16 +57,20 @@ if IN_BUILDER:
 
 # OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Packer placeholder marker for provisioner injection points
 BAKE_PLACEHOLDER = '###BAKE###'
 
-
+# Packer configuration file names
 PKR_BUILD_FILE = 'build.pkr.hcl'
 PKR_VARS_FILE = 'variable.pkr.hcl'
 PKR_AUTO_VARS_FILE = 'vars.auto.pkrvars.json'
 
+# Prefix for Azure resource tags created by az bake
 TAG_PREFIX = 'hidden-bake:'
 
 
+# Default Windows 11 Enterprise image for Dev Box scenarios.
+# Using the CPC (Cloud PC) optimized image with Microsoft 365 apps pre-installed.
 IMAGE_DEFAULT_BASE_WINDOWS = {
     'publisher': 'microsoftwindowsdesktop',
     'offer': 'windows-ent-cpc',
@@ -54,7 +78,8 @@ IMAGE_DEFAULT_BASE_WINDOWS = {
     'version': 'latest'
 }
 
-
+# Packer variable structure definitions.
+# These map to the typed variable blocks in variable.pkr.hcl.
 PKR_DEFAULT_VARS = {
     'image': [
         'name',
@@ -155,8 +180,8 @@ PKR_PROVISIONER_CHOCO_USER_INSTALL_SCRIPT = f'''
   # Injected by az bake
   provisioner "powershell" {{
     inline = [
-      "(new-object net.webclient).DownloadFile('https://github.com/rogerbestmsft/az-bake/blob/AddPurchPlan/examples/scripts/Install-ChocoUser.ps1', 'C:/Users/Public/Documents/Install-ChocoUser.ps1')",
-      "(new-object net.webclient).DownloadFile('https://github.com/rogerbestmsft/az-bake/blob/AddPurchPlan/examples/scripts/Reset-AdminConsentBehavior.ps1', 'C:/Users/Public/Documents/Reset-AdminConsentBehavior.ps1')",
+      "(new-object net.webclient).DownloadFile('https://raw.githubusercontent.com/rogerbestmsft/az-bake/main/examples/scripts/Install-ChocoUser.ps1', 'C:/Users/Public/Documents/Install-ChocoUser.ps1')",
+      "(new-object net.webclient).DownloadFile('https://raw.githubusercontent.com/rogerbestmsft/az-bake/main/examples/scripts/Reset-AdminConsentBehavior.ps1', 'C:/Users/Public/Documents/Reset-AdminConsentBehavior.ps1')",
     ]
   }}
   {BAKE_PLACEHOLDER}'''

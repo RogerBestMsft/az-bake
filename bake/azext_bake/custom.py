@@ -4,6 +4,25 @@
 # ------------------------------------
 # pylint: disable=line-too-long, logging-fstring-interpolation, too-many-locals, too-many-statements, unused-argument
 
+"""
+Command handler implementations for the 'az bake' extension.
+
+This module contains the business logic for all CLI commands. Each function maps
+directly to a CLI command and is responsible for:
+
+- Orchestrating Azure resource operations (via _arm.py)
+- Managing Packer builds (via _packer.py)
+- Handling repository operations (via _repos.py)
+- Providing user feedback through logging and progress hooks
+
+Command groups:
+- bake sandbox: Create and validate sandbox infrastructure
+- bake repo: Repository setup, validation, and image building
+- bake image: Image definition lifecycle (create, bump, logs)
+- bake yaml: Configuration file export
+- bake _builder: Internal commands for the builder container
+"""
+
 import json
 import os
 
@@ -37,9 +56,6 @@ from ._utils import (copy_to_builder_output_dir, get_install_choco_packages,
 logger = get_logger(__name__)
 
 
-# def bake_tests(cmd):
-
-
 # ----------------
 # bake sandbox
 # ----------------
@@ -50,6 +66,19 @@ def bake_sandbox_create(cmd, location, name_prefix, sandbox_resource_group_name=
                         default_subnet_name='default', default_subnet_address_prefix='10.0.0.0/25',
                         builders_subnet_name='builders', builders_subnet_address_prefix='10.0.0.128/25',
                         version=None, prerelease=False, local_templates=False, templates_url=None, template_file=None):
+    """
+    Create a sandbox environment for building custom VM images.
+
+    The sandbox includes all required Azure infrastructure:
+    - Resource group to contain all sandbox resources
+    - Key Vault for secrets management during builds
+    - Storage Account for build artifacts and logs
+    - Virtual Network with delegated subnet for ACI builder containers
+    - User-assigned Managed Identity for secure Azure access
+
+    Optionally grants the sandbox's managed identity Contributor access to a
+    gallery for image publishing, and grants access to a CI/CD service principal.
+    """
 
     # TODO: check if principal_id is provided, if not create and use msi
 
@@ -119,6 +148,12 @@ def bake_sandbox_create(cmd, location, name_prefix, sandbox_resource_group_name=
 
 def bake_sandbox_validate(cmd, sandbox_resource_group_name: str, gallery_resource_id: str = None,
                           sandbox: Sandbox = None, gallery: Gallery = None):
+    """
+    Validate sandbox configuration and permissions.
+
+    Verifies that the sandbox's managed identity has the required permissions
+    on the target gallery to publish images. Fails if permissions are missing.
+    """
     logger.info('Validating gallery permissions')
     ensure_gallery_permissions(cmd, gallery_resource_id, sandbox.identity_id)
     print('Sandbox is valid')
@@ -132,25 +167,28 @@ def bake_sandbox_validate(cmd, sandbox_resource_group_name: str, gallery_resourc
 def bake_repo_build(cmd, repository_path, image_names: Sequence[str] = None, sandbox: Sandbox = None,
                     gallery: Gallery = None, images: Sequence[Image] = None, repository_url: str = None,
                     repository_token: str = None, repository_revision: str = None, repo: Repo = None):
+    """
+    Build all images defined in the repository.
+
+    For each image definition, deploys an Azure Container Instance running
+    the Packer builder. The builder clones the repository, generates Packer
+    configuration, and executes the image build process.
+
+    Build progress can be monitored via Azure Portal or 'az bake image logs'.
+
+    Typically invoked from CI/CD pipelines (GitHub Actions or Azure DevOps)
+    when changes are pushed to the repository.
+    """
 
     hook = cmd.cli_ctx.get_progress_controller()
     hook.begin()
 
-    version = None
-    template_file = None
-    prerelease = False
-    templates_url = None
+    hook.add(message='Getting templates from GitHub')
+    version, templates = get_release_templates()
+    logger.info(f'Deploying version: {version}')
 
-    if template_file:
-        logger.warning('Deploying local version of template')
-        template_uri = None
-    else:
-        hook.add(message='Getting templates from GitHub')
-        version, templates = get_release_templates(version=version, prerelease=prerelease, templates_url=templates_url)
-        logger.info(f'Deploying{" prerelease" if prerelease else ""} version: {version}')
-
-        hook.add(message='Getting builder template')
-        template_uri = get_template_url(templates, 'builder', 'builder.json')
+    hook.add(message='Getting builder template')
+    template_uri = get_template_url(templates, 'builder', 'builder.json')
 
     deployments = []
 
@@ -203,12 +241,21 @@ def bake_repo_build(cmd, repository_path, image_names: Sequence[str] = None, san
 
 
 def bake_repo_validate(cmd, repository_path, sandbox: Sandbox = None, gallery: Gallery = None, images: Sequence[Image] = None):
+    """Validate repository configuration without building images."""
     logger.info('Validating repository')
 
 
 # pylint: disable=too-many-positional-arguments
 def bake_repo_setup(cmd, sandbox_resource_group_name: str, gallery_resource_id: str, repository_path='./',
                     repository_provider: str = None, sandbox: Sandbox = None, gallery: Gallery = None):
+    """
+    Initialize a Git repository for image building.
+
+    Creates the bake.yml configuration file and generates CI/CD workflow files
+    based on the detected or specified repository provider:
+    - GitHub: .github/workflows/bake_images.yml
+    - Azure DevOps: azure-pipelines.yml
+    """
     logger.info('Setting up repository')
 
     # logger.warning(repository_provider)
@@ -238,6 +285,13 @@ def bake_repo_setup(cmd, sandbox_resource_group_name: str, gallery_resource_id: 
 
 
 def bake_image_create(cmd, image_name, repository_path='./'):
+    """
+    Create a new image definition in the repository.
+
+    Generates an images/{image_name}/ directory with a default image.yml file.
+    The generated file includes common Windows defaults and sample Chocolatey
+    packages, and should be customized for the specific image requirements.
+    """
     logger.info('Creating image.yml file')
 
     image = Image({
@@ -278,6 +332,13 @@ def bake_image_create(cmd, image_name, repository_path='./'):
 
 
 def bake_image_logs(cmd, sandbox_resource_group_name, image_name, sandbox: Sandbox = None):
+    """
+    Display build logs for an image.
+
+    Retrieves and displays the Packer build output from the Azure Container
+    Instance that is building (or has built) the specified image.
+    Useful for monitoring progress and troubleshooting build failures.
+    """
     container_client = cf_container(cmd.cli_ctx)
     container_group_client = cf_container_groups(cmd.cli_ctx)
     container_group = container_group_client.get(sandbox.resource_group, image_name)
@@ -291,6 +352,14 @@ def bake_image_logs(cmd, sandbox_resource_group_name, image_name, sandbox: Sandb
 # pylint: disable=too-many-positional-arguments
 def bake_image_bump(cmd, repository_path='./', image_names: Sequence[str] = None, images: Sequence[Image] = None,
                     major: bool = False, minor: bool = False):
+    """
+    Increment image version numbers using semantic versioning.
+
+    Updates the version field in image.yml files:
+    - Default: Increment patch version (1.0.0 -> 1.0.1)
+    - --minor: Increment minor, reset patch (1.0.1 -> 1.1.0)
+    - --major: Increment major, reset minor and patch (1.2.3 -> 2.0.0)
+    """
     logger.info('Bumping image version')
 
     if major and minor:
@@ -333,6 +402,7 @@ def bake_image_bump(cmd, repository_path='./', image_names: Sequence[str] = None
 def bake_yaml_export(cmd, sandbox_resource_group_name, gallery_resource_id,
                      sandbox: Sandbox = None, gallery: Gallery = None, images: Sequence[Image] = None,
                      outfile='./bake.yml', outdir=None, stdout=False):
+    """Export sandbox and gallery configuration to a bake.yml file."""
     _bake_yaml_export(sandbox=sandbox, gallery=gallery, images=images, outfile=outfile, outdir=outdir, stdout=stdout)
 
 
@@ -342,6 +412,12 @@ def bake_yaml_export(cmd, sandbox_resource_group_name, gallery_resource_id,
 # ----------------
 
 def bake_version(cmd):
+    """
+    Display the current extension version and check for updates.
+
+    Compares the installed version against the latest GitHub release
+    and notifies the user if an upgrade is available.
+    """
     ext = show_extension('bake')
     current_version = 'v' + ext['version']
     is_dev = 'extensionType' in ext and ext['extensionType'] == 'dev'
@@ -358,6 +434,13 @@ def bake_version(cmd):
 
 
 def bake_upgrade(cmd, version=None, prerelease=False):
+    """
+    Upgrade the az bake extension to a newer version.
+
+    By default, upgrades to the latest stable release. Use --pre for
+    prerelease versions or --version to target a specific release.
+    Skips upgrade if the extension is in development mode.
+    """
     ext = show_extension('bake')
     current_version = 'v' + ext['version']
     logger.info(f'Current version: {current_version}')
@@ -399,6 +482,22 @@ def bake_upgrade(cmd, version=None, prerelease=False):
 # ----------------
 
 def bake_builder_build(cmd, sandbox: Sandbox = None, gallery: Gallery = None, image: Image = None, suffix=None):
+    """
+    Execute a Packer build within the builder container.
+
+    This is an internal command executed by the ACI builder container, not
+    intended for direct user invocation. It:
+
+    1. Authenticates to Azure (service principal or managed identity)
+    2. Ensures the gallery image definition exists
+    3. Generates Packer configuration with appropriate provisioners
+    4. Executes Packer to build and publish the image
+
+    Provisioners are injected based on image.yml configuration:
+    - Windows Update (if image.update=true)
+    - PowerShell scripts (sequential execution with optional restarts)
+    - Chocolatey packages (machine-level and user-level via Active Setup)
+    """
 
     if IN_BUILDER:
         from azure.cli.command_modules.profile.custom import login

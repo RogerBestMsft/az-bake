@@ -5,6 +5,20 @@
 # pylint: disable=logging-fstring-interpolation, protected-access, inconsistent-return-statements, raise-missing-from
 # pylint: disable=too-many-arguments, too-many-locals
 
+"""
+Azure Resource Manager (ARM) deployment and resource management operations.
+
+This module handles all ARM-based infrastructure operations:
+
+- Template deployments (ARM JSON and Bicep) for sandbox and builder creation
+- Resource group management (create, tag, query)
+- Azure Compute Gallery operations (images, definitions, versions)
+- RBAC role assignments for managed identity permissions
+
+Deployments include retry logic for transient ServiceUnavailable errors.
+All gallery images are created with Gen 2 VM support and Trusted Launch enabled.
+"""
+
 import json
 
 from time import sleep
@@ -15,8 +29,8 @@ from azure.cli.core.commands.client_factory import get_subscription_id
 from azure.cli.core.profiles import ResourceType, get_sdk
 from azure.cli.core.util import random_string, sdk_no_wait
 from azure.core.exceptions import ResourceNotFoundError
+from azure.mgmt.core.tools import parse_resource_id, resource_id
 from knack.util import CLIError
-from msrestazure.tools import parse_resource_id, resource_id
 
 from ._client_factory import cf_compute, cf_msi, cf_network, cf_resources
 from ._utils import get_logger
@@ -31,13 +45,31 @@ logger = get_logger(__name__)
 # ----------------
 
 
-def is_bicep_file(file_path):
+def is_bicep_file(file_path: str) -> bool:
+    """Check if a template file is Bicep format (requires transpilation)."""
     return file_path.lower().endswith(".bicep")
 
 
 # pylint: disable=too-many-positional-arguments
 def deploy_arm_template_at_resource_group(cmd, resource_group_name=None, template_file=None,
                                           template_uri=None, parameters=None, no_wait=False):
+    """
+    Deploy an ARM template (JSON or Bicep) to a resource group.
+
+    Includes retry logic for transient ServiceUnavailable errors during deployment.
+    Generates a random deployment name for each attempt to avoid conflicts.
+
+    Args:
+        cmd: Azure CLI command context.
+        resource_group_name: Target resource group for deployment.
+        template_file: Local template file path (ARM JSON or Bicep).
+        template_uri: Remote template URI (must be ARM JSON).
+        parameters: List of parameter strings in 'key=value' format.
+        no_wait: If True, return immediately without waiting for completion.
+
+    Returns:
+        Tuple of (deployment_result, outputs_dict).
+    """
 
     from azure.cli.command_modules.resource.custom import JsonCTemplatePolicy, _prepare_deployment_properties_unmodified
 
@@ -82,16 +114,19 @@ def deploy_arm_template_at_resource_group(cmd, resource_group_name=None, templat
                 raise err
             try:
                 response = getattr(err, 'response', None)
+                if response is None:
+                    raise err
                 message = json.loads(response.text)['error']['details'][0]['message']
                 if '(ServiceUnavailable)' not in message:
                     raise err
-            except:
+            except (AttributeError, KeyError, TypeError, json.JSONDecodeError):
                 raise err from err
             sleep(5)
             continue
 
 
-def get_arm_output(outputs, key, raise_on_error=True):
+def get_arm_output(outputs: dict, key: str, raise_on_error: bool = True):
+    """Extract a named value from ARM template deployment outputs."""
     if not outputs:
         return None
     try:
@@ -178,6 +213,25 @@ def create_resource_group(cli_ctx, resource_group_name, location, tags=None):
 
 
 def ensure_gallery_permissions(cmd, gallery_id: str, identity_id: str, create_assignment=True):
+    """
+    Verify or create RBAC permissions for a managed identity on a gallery.
+
+    The managed identity must have Contributor or Owner role on the gallery's
+    resource group to create and manage image definitions and versions.
+
+    Args:
+        cmd: Azure CLI command context.
+        gallery_id: Resource ID of the target Azure Compute Gallery.
+        identity_id: Resource ID of the user-assigned managed identity.
+        create_assignment: If True, create missing role assignment automatically.
+
+    Returns:
+        Principal ID of the managed identity.
+
+    Raises:
+        CLIError: If permissions are missing and create_assignment is False,
+                  or if role assignment creation fails.
+    """
     from azure.cli.command_modules.role.custom import list_role_assignments
 
     i_parts = parse_resource_id(identity_id)
@@ -258,6 +312,20 @@ def create_image_definition(cmd, resource_group_name, gallery_name, gallery_imag
                             location=None, os_type='Windows', os_state='Generalized', end_of_life_date=None,
                             description=None, tags=None, hibernate=False, plan_name=None, plan_publisher=None,
                             plan_product=None):
+    """
+    Create a gallery image definition with secure defaults.
+
+    All images are created as Gen 2 VMs with Trusted Launch enabled for
+    enhanced security. Hibernate support can be optionally enabled for
+    images that need fast resume capability (e.g., DevBox).
+
+    Args:
+        plan_name/plan_publisher/plan_product: Required for marketplace images
+            that have license terms requiring plan information.
+
+    Returns:
+        The created GalleryImage resource.
+    """
     logger.info(f'Creating image definition {gallery_image_name} in gallery {gallery_name} ...')
 
     if location is None:
@@ -265,7 +333,7 @@ def create_image_definition(cmd, resource_group_name, gallery_name, gallery_imag
 
     client = cf_compute(cmd.cli_ctx)
 
-    if ([plan_name, plan_publisher, plan_product]) is None:
+    if plan_name is None and plan_publisher is None and plan_product is None:
         GalleryImage, GalleryImageIdentifier, Disallowed, GalleryImageFeature = cmd.get_models(
             'GalleryImage', 'GalleryImageIdentifier', 'Disallowed', 'GalleryImageFeature',
             resource_type=ResourceType.MGMT_COMPUTE, operation_group='galleries')

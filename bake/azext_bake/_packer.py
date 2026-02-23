@@ -4,6 +4,29 @@
 # ------------------------------------
 # pylint: disable=logging-fstring-interpolation
 
+"""
+HashiCorp Packer integration for VM image building.
+
+This module handles all Packer-related operations:
+
+- Template management: Copy base HCL templates and inject provisioners
+- Variable handling: Generate vars.auto.pkrvars.json from image configuration
+- Provisioner injection: Dynamically insert HCL blocks for:
+  - Windows Update (security patches)
+  - PowerShell scripts (with optional restart support)
+  - Chocolatey packages (machine-level and user-level via Active Setup)
+  - Winget packages (experimental)
+- Build execution: Run packer init and build commands
+
+Provisioners are injected at a placeholder marker (###BAKE###) in the
+build.pkr.hcl template, enabling flexible configuration while maintaining
+a clean base template.
+
+User-level Chocolatey packages are installed via Windows Active Setup,
+which triggers installation scripts on first user login - enabling
+per-user application customization in multi-user scenarios like DevBox.
+"""
+
 import json
 import os
 import shutil
@@ -27,7 +50,7 @@ from ._utils import get_logger, get_templates_path, get_choco_package_setup
 logger = get_logger(__name__)
 
 # indicates if the script is running in the docker container
-in_builder = os.environ.get('ACI_IMAGE_BUILDER', False)
+in_builder = os.environ.get('AZ_BAKE_IMAGE_BUILDER', False)
 
 
 def check_packer_install(raise_error=True):
@@ -90,7 +113,12 @@ def _clean_for_vars(obj, allowed_keys):
 
 
 def save_packer_vars_file(sandbox: Sandbox, gallery: Gallery, image: Image, additonal_vars: Mapping[str, Any] = None):
-    '''Saves properties from image.yaml to a packer auto variables file'''
+    """
+    Generate the Packer auto-variables file (vars.auto.pkrvars.json).
+
+    Extracts relevant properties from sandbox, gallery, and image configurations
+    and writes them in JSON format for Packer variable interpolation.
+    """
     logger.info(f'Saving packer auto variables file for {image.name}')
     pkr_vars = get_packer_vars(image)
     logger.info(f'Packer variables for {image.name}: {pkr_vars}')
@@ -143,13 +171,19 @@ def packer_build(image: Image):
 
 
 def packer_execute(image: Image):
-    '''Executes the packer init and build commands on an image'''
+    """Execute packer init and build for an image. Returns exit code."""
     i = packer_init(image)
     return packer_build(image) if i == 0 else i
 
 
 def copy_packer_files(image_dir: Path):
-    '''Copies the packer files from the bake templates to the image directory unless they already exist'''
+    """
+    Copy base Packer templates to the image directory.
+
+    Skips copying if files already exist, allowing users to provide
+    custom Packer configurations. Returns False if build.pkr.hcl exists
+    (provisioners won't be injected for custom templates).
+    """
     logger.info(f'Copying packer files to {image_dir}')
     templates_dir = get_templates_path('packer')
 
@@ -277,8 +311,13 @@ def inject_choco_machine_provisioners(image_dir: Path, choco_packages):
 
 
 def inject_choco_user_provisioners(image_dir: Path, choco_packages):
-    '''Injects the chocolatey user provisioner into the packer build file'''
+    """
+    Inject Active Setup registry entries for user-level Chocolatey packages.
 
+    Active Setup runs commands on first user login, enabling per-user
+    application installation. Each package gets a unique registry key that
+    triggers Install-ChocoUser.ps1 with the package ID and arguments.
+    """
     choco_user_provisioner = '''
   # Injected by az bake
   provisioner "powershell" {

@@ -4,6 +4,24 @@
 # ------------------------------------
 # pylint: disable=logging-fstring-interpolation
 
+"""
+Sandbox resource discovery and naming conventions.
+
+This module handles sandbox environment management:
+
+- Discovery: Extract sandbox configuration from resource group tags or by
+  scanning resources when tags are incomplete (backward compatibility)
+- Naming: Generate Azure-compliant resource names from a user-provided prefix,
+  handling naming constraints for each resource type:
+  - KeyVault: 3-24 chars, alphanumeric/hyphens, globally unique
+  - Storage: 3-24 chars, lowercase alphanumeric, globally unique
+  - VNet: 2-64 chars, alphanumeric/underscore/period/hyphen
+  - Identity: 3-128 chars, alphanumeric/underscore/hyphen
+
+The sandbox stores its configuration in hidden resource group tags (prefixed
+with 'hidden-bake:') for efficient retrieval without scanning all resources.
+"""
+
 from azure.cli.core.azclierror import ValidationError
 from azure.cli.core.commands.client_factory import get_subscription_id
 from azure.cli.core.commands.parameters import get_resources_in_resource_group
@@ -20,6 +38,26 @@ logger = get_logger(__name__)
 
 
 def get_sandbox_from_group(cmd, resource_group_name: str) -> Sandbox:  # pylint: disable=too-many-statements
+    """
+    Reconstruct a Sandbox configuration from a resource group.
+
+    First attempts to read configuration from resource group tags (fast path).
+    Falls back to scanning resources if tags are incomplete, ensuring backward
+    compatibility with sandboxes created before tagging was implemented.
+
+    Validates that required resources exist and network configuration is correct
+    (ACI-delegated subnet for builders, additional subnet for VMs/endpoints).
+
+    Args:
+        cmd: Azure CLI command context.
+        resource_group_name: Name of the sandbox resource group.
+
+    Returns:
+        Populated Sandbox dataclass instance.
+
+    Raises:
+        ValidationError: If required resources are missing or misconfigured.
+    """
     tags = get_resource_group_tags(cmd, resource_group_name)
 
     sub = tags.get(tag_key('subscription'))
@@ -121,6 +159,7 @@ def get_sandbox_from_group(cmd, resource_group_name: str) -> Sandbox:  # pylint:
 
 
 def get_builder_subnet_id(sandbox: Sandbox):
+    """Construct the full resource ID for the builder (ACI-delegated) subnet."""
     # for k in ['subscription', 'virtualNetworkResourceGroup', 'virtualNetwork', 'builderSubnet']:
     #     if k not in sandbox or not sandbox[k]:
     #         raise ValidationError(f'Sandbox is missing required property: {k}')
@@ -283,6 +322,19 @@ def _get_sandbox_identity_name(cmd, name_prefix):  # pylint: disable=unused-argu
 
 
 def get_sandbox_resource_names(cmd, name_prefix):
+    """
+    Generate Azure-compliant resource names from a prefix.
+
+    Each resource type has different naming constraints. This function ensures
+    generated names are valid and available (for globally-unique resources).
+
+    Args:
+        cmd: Azure CLI command context (for availability checks).
+        name_prefix: User-provided prefix for resource names.
+
+    Returns:
+        Dict with keys: keyvault, storage, vnet, identity.
+    """
     kv_name = _get_sandbox_keyvault_name(cmd, name_prefix)
     storage_name = _get_sandbox_storage_name(cmd, name_prefix)
     vnet_name = _get_sandbox_vnet_name(cmd, name_prefix)

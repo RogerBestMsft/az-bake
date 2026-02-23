@@ -1,0 +1,20 @@
+# Development dependencies for az-bake extension
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0  # For parallel test execution
+
+# Linting & Type checking
+flake8>=6.0.0
+mypy>=1.0.0
+pylint>=2.17.0
+
+# Development utilities
+pyyaml>=6.0
+requests-mock>=1.11.0  # For mocking HTTP requests
+
+# Azure CLI (full install needed for extension imports)
+azure-cli>=2.50.0

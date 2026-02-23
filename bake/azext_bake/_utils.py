@@ -4,6 +4,20 @@
 # ------------------------------------
 # pylint: disable=logging-fstring-interpolation
 
+"""
+Utility functions and helpers for the 'az bake' extension.
+
+This module provides common functionality used across the extension:
+
+- Logging: Enhanced logger with file output when running in builder container
+- File operations: YAML parsing, template path resolution, file copying
+- Data extraction: Helpers to process image.yml install configurations
+- Chocolatey helpers: Generate package config XML and command arguments
+
+The logger automatically writes to builder.log when running inside the
+ACI builder container, preserving build output for troubleshooting.
+"""
+
 import json
 import os
 
@@ -23,7 +37,12 @@ from ._data import ChocoPackage, Image, PowershellScript, get_dict
 
 
 def get_logger(name):
-    '''Get the logger for the extension'''
+    """
+    Get a logger with optional file output for builder container.
+
+    When running inside the builder container (detected via IN_BUILDER),
+    logs are also written to builder.log for post-build troubleshooting.
+    """
     _logger = knack_get_logger(name)
 
     # this must only happen in the builder, otherwise
@@ -132,13 +151,18 @@ TData = TypeVar('TData')
 
 
 def get_yaml_file_data(data_type: TData, path: Path) -> TData:
-    '''Get the data from a yaml file'''
+    """Parse a YAML file and construct a domain object from its contents."""
     obj = get_yaml_file_contents(path)
     return data_type(obj, path)
 
 
 def get_install_choco_packages(image: Image) -> List[ChocoPackage]:
-    '''Get the dict for the install choco section supplemented by the index'''
+    """
+    Extract and enrich Chocolatey package configuration from an image.
+
+    Merges package definitions from image.yml with defaults and the built-in
+    choco.json index, which contains recommended settings for common packages.
+    """
     logger.info('Getting choco install dictionary from image.yaml')
     if image.install is None or image.install.choco is None:
         return None
@@ -156,10 +180,9 @@ def get_install_choco_packages(image: Image) -> List[ChocoPackage]:
 
     for c in image.install.choco.packages:
         logger.info(f'Getting choco config for {c} type {type(c)}')
-        # if only the id was givin, check the index for the rest of the config
+        # if only the id was given, check the index for the rest of the config
         choco_node = ChocoPackage(choco_index[c.id]) if c.id_only and c.id in choco_index else ChocoPackage(get_dict(c))
 
-        # TODO
         # if defaults were given, add them to the config
         if image.install.choco.defaults:
             choco_node.apply_defaults(image.install.choco.defaults)  # merge common properties into package properties
@@ -200,14 +223,13 @@ def get_choco_package_setup(package: ChocoPackage) -> str:
         if key not in ('id', 'restart'):
             choco_setup_string += f" --{key} '{pkg[key]}'"
 
-    choco_setup_string += '--yes --no-progress'
+    choco_setup_string += ' --yes --no-progress'
     return choco_setup_string
 
 
 def get_install_winget(image: Image):
-    # TODO
     '''Get the dict for the install winget section supplemented by the index'''
-    logger.info('Getting wingit install dictionary from image.yaml')
+    logger.info('Getting winget install dictionary from image.yaml')
     if image.install is None or image.install.winget is None:
         return None
 
@@ -247,7 +269,7 @@ def get_install_winget(image: Image):
 
 
 def get_install_powershell_scripts(image: Image) -> List[PowershellScript]:
-    # TODO
+    '''Get the powershell scripts install dictionary from image.yaml'''
     logger.info('Getting powershell scripts install dictionary from image.yaml')
     if image.install is None or image.install.scripts is None:
         return None
@@ -286,84 +308,3 @@ def _validate_file_path(path, name=None) -> Path:
     if not file_path.is_file():
         raise ValidationError(f'{file_path} is not a file')
     return file_path
-
-# def _get_current_user_object_id(graph_client):
-#     try:
-#         current_user = graph_client.signed_in_user.get()
-#         if current_user and current_user.object_id:  # pylint:disable=no-member
-#             return current_user.object_id  # pylint:disable=no-member
-#     except CloudError:
-#         pass
-
-
-# def _get_object_id_by_spn(graph_client, spn):
-#     accounts = list(graph_client.service_principals.list(
-#         filter=f"servicePrincipalNames/any(c:c eq '{spn}')"))
-#     if not accounts:
-#         logger.warning("Unable to find user with spn '%s'", spn)
-#         return None
-#     if len(accounts) > 1:
-#         logger.warning("Multiple service principals found with spn '%s'. "
-#                        "You can avoid this by specifying object id.", spn)
-#         return None
-#     return accounts[0].object_id
-
-
-# def _get_object_id_by_upn(graph_client, upn):
-#     accounts = list(graph_client.users.list(filter=f"userPrincipalName eq '{upn}'"))
-#     if not accounts:
-#         logger.warning("Unable to find user with upn '%s'", upn)
-#         return None
-#     if len(accounts) > 1:
-#         logger.warning("Multiple users principals found with upn '%s'. "
-#                        "You can avoid this by specifying object id.", upn)
-#         return None
-#     return accounts[0].object_id
-
-
-# def _get_object_id_from_subscription(graph_client, subscription):
-#     if not subscription:
-#         return None
-
-#     if subscription['user']:
-#         if subscription['user']['type'] == 'user':
-#             return _get_object_id_by_upn(graph_client, subscription['user']['name'])
-#         if subscription['user']['type'] == 'servicePrincipal':
-#             return _get_object_id_by_spn(graph_client, subscription['user']['name'])
-#         logger.warning("Unknown user type '%s'", subscription['user']['type'])
-#     else:
-#         logger.warning('Current credentials are not from a user or service principal. '
-#                        'Azure Key Vault does not work with certificate credentials.')
-#     return None
-
-
-# def _get_object_id(graph_client, subscription=None, spn=None, upn=None):
-#     if spn:
-#         return _get_object_id_by_spn(graph_client, spn)
-#     if upn:
-#         return _get_object_id_by_upn(graph_client, upn)
-#     return _get_object_id_from_subscription(graph_client, subscription)
-
-
-# def get_user_info(cmd):
-
-#     profile = Profile(cli_ctx=cmd.cli_ctx)
-#     cred, _, tenant_id = profile.get_login_credentials(
-#         resource=cmd.cli_ctx.cloud.endpoints.active_directory_graph_resource_id)
-
-#     graph_client = GraphRbacManagementClient(
-#         cred,
-#         tenant_id,
-#         base_url=cmd.cli_ctx.cloud.endpoints.active_directory_graph_resource_id)
-#     subscription = profile.get_subscription()
-
-#     try:
-#         object_id = _get_current_user_object_id(graph_client)
-#     except GraphErrorException:
-#         object_id = _get_object_id(graph_client, subscription=subscription)
-#     if not object_id:
-#         raise AzureResponseError('Cannot create vault.\nUnable to query active directory for information '
-#                                  'about the current user.\nYou may try the --no-self-perms flag to '
-#                                  'create a vault without permissions.')
-
-#     return object_id, tenant_id

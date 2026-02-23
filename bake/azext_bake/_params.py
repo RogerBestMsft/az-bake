@@ -4,6 +4,22 @@
 # ------------------------------------
 # pylint: disable=line-too-long, too-many-statements
 
+"""
+CLI parameter definitions for the 'az bake' extension.
+
+This module defines all command parameters using the Azure CLI argument framework:
+
+- Parameter types (sandbox, gallery, repository path, etc.)
+- Default values and configured defaults (az configure --defaults)
+- Tab completion (resource groups, versions, directories)
+- Validation binding (connects parameters to validators in _validators.py)
+- Argument grouping for organized help output
+
+Parameter types are defined once and reused across commands to ensure consistent
+behavior and help text. The c.ignore() calls hide namespace attributes injected
+by validators from the command signature.
+"""
+
 from argcomplete.completers import DirectoriesCompleter, FilesCompleter
 from azure.cli.core.commands.parameters import (file_type, get_enum_type, get_location_type,
                                                 get_resource_group_completion_list, tags_type)

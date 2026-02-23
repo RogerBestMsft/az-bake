@@ -4,6 +4,19 @@
 # Licensed under the MIT License.
 # ------------------------------------
 
+"""
+CLI help text definitions for the 'az bake' extension.
+
+This module uses the knack help_files framework to define help text for all
+commands. Each command group and command is documented with:
+
+- short-summary: Brief description shown in command listings
+- examples: Usage examples with descriptions and command text
+
+The help text is registered at module load time via the 'helps' dictionary
+import in __init__.py.
+"""
+
 from knack.help_files import helps  # pylint: disable=unused-import
 
 # ----------------

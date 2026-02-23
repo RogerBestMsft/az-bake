@@ -4,6 +4,22 @@
 # ------------------------------------
 # pylint: disable=too-many-instance-attributes
 
+"""
+Repository provider abstraction for Git operations.
+
+This module handles detection and parsing of Git repository URLs for both
+supported CI/CD providers:
+
+- GitHub: Parses URLs like https://github.com/org/repo or git@github.com:org/repo
+- Azure DevOps: Parses URLs like https://dev.azure.com/org/project/_git/repo
+
+The CI class auto-detects the runtime environment (GitHub Actions or Azure DevOps
+Pipelines) and extracts relevant context like tokens and commit SHAs.
+
+The Repo class normalizes various URL formats into a consistent structure and
+constructs authenticated clone URLs when tokens are available.
+"""
+
 import os
 
 from dataclasses import dataclass, field
@@ -16,6 +32,13 @@ from ._constants import DEVOPS_PROVIDER_NAME, GITHUB_PROVIDER_NAME
 
 @dataclass
 class CI:
+    """
+    CI environment detection and context extraction.
+
+    Automatically detects GitHub Actions or Azure DevOps Pipelines environments
+    and extracts repository URL, access token, and commit information from
+    the respective environment variables.
+    """
     provider: Literal['GitHub', 'AzureDevOps'] = None
     url: str = None
     token: str = None
@@ -58,6 +81,21 @@ class CI:
 
 @dataclass
 class Repo:
+    """
+    Git repository URL parser and normalizer.
+
+    Parses various Git URL formats (HTTPS, SSH, git://) for both GitHub and
+    Azure DevOps, extracting organization, project (for DevOps), and repository
+    names. Constructs authenticated clone URLs when access tokens are provided.
+
+    Attributes:
+        url: Normalized HTTPS repository URL.
+        provider: 'GitHub' or 'AzureDevOps'.
+        org: Organization or account name.
+        repo: Repository name.
+        project: Azure DevOps project name (None for GitHub).
+        clone_url: URL with embedded credentials for cloning.
+    """
     # required properties
     url: str
     provider: Literal['GitHub', 'AzureDevOps'] = field(init=False)

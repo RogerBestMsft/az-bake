@@ -4,6 +4,30 @@
 # ------------------------------------
 # pylint: disable=line-too-long, logging-fstring-interpolation, unused-argument
 
+"""
+Input validation logic for the 'az bake' extension commands.
+
+This module implements validators that run before command handlers execute.
+Validators perform several critical functions:
+
+- Validate and transform input parameters (paths, resource IDs, etc.)
+- Populate namespace attributes by loading configuration files and Azure resources
+- Detect CI environment and extract repository context
+- Ensure mutually exclusive arguments aren't used together
+- Verify version formats and existence of GitHub releases
+
+Validators modify the namespace (ns) object to pass processed data to handlers.
+Command-level validators (process_*_namespace) orchestrate multiple validations
+for commands with complex requirements.
+
+Key validators:
+- sandbox_resource_group_name_validator: Loads Sandbox config from resource group
+- gallery_resource_id_validator: Resolves gallery names to full resource IDs
+- repository_path_validator: Validates Git repository structure
+- bake_yaml_validator: Loads and validates bake.yml configuration
+- builder_validator: Validates environment for builder container execution
+"""
+
 import ipaddress
 import os
 
@@ -31,7 +55,12 @@ logger = get_logger(__name__)
 
 
 def process_sandbox_create_namespace(cmd, ns):
+    """
+    Validate all parameters for sandbox creation.
 
+    Ensures resource group name, network CIDR ranges, tags, and gallery
+    permissions are properly configured before deploying infrastructure.
+    """
     if not ns.sandbox_resource_group_name:
         logger.info('No sandbox resource group name provided, using sandbox name')
         ns.sandbox_resource_group_name = ns.name_prefix
@@ -48,6 +77,15 @@ def process_sandbox_create_namespace(cmd, ns):
 
 
 def process_bake_repo_build_namespace(cmd, ns):
+    """
+    Validate parameters and detect environment for repo build.
+
+    Automatically detects CI environment (GitHub Actions, Azure DevOps) and
+    extracts repository URL, token, and commit SHA. When running locally,
+    requires explicit --repo-url parameter.
+
+    Creates a Repo object with normalized URL structure for clone operations.
+    """
     # if hasattr(ns, 'sandbox_resource_group_name') and ns.sandbox_resource_group_name \
     #     and hasattr(ns, 'gallery_resource_id') and ns.gallery_resource_id:
 
@@ -91,6 +129,17 @@ def process_bake_repo_validate_namespace(cmd, ns):
 
 
 def builder_validator(cmd, ns):
+    """
+    Validate environment for builder container execution.
+
+    Ensures the command is running inside the ACI builder container with:
+    - Required environment variables (image name, builder version)
+    - Packer CLI installed and accessible
+    - Mounted volumes (repo, storage) present
+    - Valid bake.yml and image.yml configurations
+
+    Allows local execution only when extension is in dev mode for testing.
+    """
     if not IN_BUILDER:
         from azure.cli.core.extension.operations import show_extension
         if not (ext := show_extension('bake')) or 'extensionType' not in ext or ext['extensionType'] != 'dev':
@@ -134,6 +183,13 @@ def builder_validator(cmd, ns):
 
 
 def repository_images_validator(cmd, ns):
+    """
+    Discover and validate image definitions in the repository.
+
+    Walks the images/ directory to find all image definitions, validates
+    their image.yml files, and populates ns.images with Image objects.
+    If specific image names are provided via --images, validates they exist.
+    """
     if not ns.repository_path:
         raise RequiredArgumentMissingError('--repo-path/--repo is required')
 
@@ -169,7 +225,13 @@ def repository_images_validator(cmd, ns):
 
 
 def repository_path_validator(cmd, ns):
-    '''Ensure the repository path is valid, transforms to a path object, and validates a .git directory exists'''
+    """
+    Validate repository path and detect provider from git config.
+
+    Transforms the path to absolute Path object, verifies .git directory
+    exists, and auto-detects GitHub vs Azure DevOps from the remote URL
+    if --repo-provider is not explicitly specified.
+    """
     if not ns.repository_path:
         raise RequiredArgumentMissingError('--repo-path/--repo is required')
 
@@ -293,6 +355,13 @@ def image_yaml_validator(cmd, ns, path):
 
 
 def sandbox_resource_group_name_validator(cmd, ns):
+    """
+    Load sandbox configuration from Azure resource group.
+
+    Retrieves sandbox details (identity, keyvault, storage, network) from
+    resource group tags or by scanning resources. Populates ns.sandbox
+    with a Sandbox dataclass for use by command handlers.
+    """
     if hasattr(ns, 'resource_group_name') and hasattr(ns, 'sandbox_resource_group_name'):
         raise CLIError('Shouldnt specify both resource_group_name and sandbox_resource_group_name')
     if hasattr(ns, 'resource_group_name'):
@@ -309,6 +378,13 @@ def sandbox_resource_group_name_validator(cmd, ns):
 
 
 def gallery_resource_id_validator(cmd, ns):
+    """
+    Resolve gallery argument to a full Azure resource ID.
+
+    Accepts either a full resource ID or just a gallery name. If a name
+    is provided, searches the subscription for matching galleries and
+    resolves to the full ID. Populates ns.gallery with a Gallery object.
+    """
     if ns.gallery_resource_id:
         if not is_valid_resource_id(ns.gallery_resource_id):
             logger.info('gallery arg provided is not a valid resource id, attempting to find gallery by name')

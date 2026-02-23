@@ -4,6 +4,27 @@
 # ------------------------------------
 # pylint: disable=too-many-instance-attributes
 
+"""
+Domain data models for the 'az bake' extension.
+
+This module defines dataclass-based domain models that represent the core
+business entities used throughout the extension:
+
+- Image: Custom VM image definition (publisher, offer, sku, install config)
+- ImageInstall: Software installation specifications (Chocolatey, PowerShell, Winget)
+- Sandbox: Azure infrastructure environment for image building
+- Gallery: Azure Compute Gallery reference for image publishing
+- BakeConfig: Repository-level configuration from bake.yml
+
+All models include validation in their constructors to ensure required fields
+are present and data types are correct. Models are initialized from dictionaries
+(typically parsed from YAML) and support serialization back to dictionaries
+using the get_dict() helper.
+
+The naming convention conversion (snake_case <-> camelCase) enables natural
+Python attribute access while maintaining YAML file compatibility.
+"""
+
 from dataclasses import MISSING, asdict, dataclass, field, fields
 from pathlib import Path
 from typing import List, Literal, Optional
@@ -25,9 +46,22 @@ def _camel_to_snake(name: str):
 
 
 def _validate_data_object(data_type: type, obj: dict, path: Path = None, parent_key: str = None):
-    '''Validates a dict data object against a dataclass type.
-    Ensures all required fields are present and that no invalid fields are present.'''
+    """
+    Validate a dictionary against a dataclass schema.
 
+    Ensures all required fields (those without defaults) are present and have
+    values, and that no unknown fields are included. This provides early
+    validation with clear error messages for YAML configuration files.
+
+    Args:
+        data_type: The dataclass type to validate against.
+        obj: Dictionary to validate.
+        path: Optional file path for error message context.
+        parent_key: Dot-notation prefix for nested property error messages.
+
+    Raises:
+        ValidationError: If required fields are missing or invalid fields exist.
+    """
     flds = fields(data_type)
     all_fields = [_snake_to_camel(f.name) for f in flds]
     req_fields = [_snake_to_camel(f.name) for f in flds if f.default is MISSING]
@@ -49,7 +83,15 @@ def _validate_data_object(data_type: type, obj: dict, path: Path = None, parent_
 
 
 def get_dict(instance):
-    # TODO: shoul we filter False values?  How can we convert back to string lists fo things like choco packages?
+    """
+    Convert a dataclass instance to a dictionary with camelCase keys.
+
+    Filters out None and False values to produce clean YAML output.
+    Used when exporting configuration files or passing data to Packer templates.
+
+    Note: False values are filtered to keep YAML output clean. Boolean properties
+    that default to False don't need to be explicitly set in the output.
+    """
     return asdict(instance, dict_factory=lambda x: {_snake_to_camel(k): v for k,
                                                     v in x if v is not None and v is not False})
 
@@ -95,6 +137,7 @@ class ChocoDefaults:
     # optional
     source: str = None
     install_arguments: str = None
+    restart: bool = False
 
     def __init__(self, obj: dict, path: Path = None) -> None:
         _validate_data_object(ChocoDefaults, obj, path=path, parent_key='install.choco.defaults')
@@ -151,6 +194,7 @@ class ImageInstallChoco:
 
         self.packages = [ChocoPackage({'id': p}, path) if isinstance(p, str)
                          else ChocoPackage(p, path) for p in obj['packages']]
+        self.defaults = ChocoDefaults(obj['defaults'], path) if obj.get('defaults') else None
 
 
 # --------------------------------
@@ -188,10 +232,15 @@ class WingetPackage:
         self.moniker = obj.get('moniker', None)
         self.any = obj.get('any', None)
 
-        # TODO: Validate that only one of id, name, moniker, any is set
-        if not self.id and not self.name and not self.moniker and not self.any:
+        # Validate that at least one identifier is set
+        identifiers = [self.id, self.name, self.moniker, self.any]
+        set_identifiers = [i for i in identifiers if i is not None]
+        if not set_identifiers:
             raise ValidationError(f'{path} is missing required property: install.winget.id, install.winget.name, '
-                                  'install.winget.moniker')
+                                  'install.winget.moniker, or install.winget.any')
+        # Validate that only one identifier is set
+        if len(set_identifiers) > 1:
+            raise ValidationError(f'{path} must specify only one of: id, name, moniker, or any (found multiple)')
 
         self.source = obj.get('source', None)
         self.version = obj.get('version', None)
@@ -220,7 +269,7 @@ class ImageInstallActiveSetup:
     def __init__(self, obj: dict) -> None:
         _validate_data_object(ImageInstallActiveSetup, obj, parent_key='install.activesetup')
 
-        self.commands = [str]
+        self.commands = obj.get('commands', [])
 
 # --------------------------------
 # Image > Install

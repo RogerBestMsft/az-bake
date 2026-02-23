@@ -3,6 +3,21 @@
 # Licensed under the MIT License.
 # ------------------------------------
 
+"""
+Command table registration for the 'az bake' extension.
+
+This module defines the command hierarchy and maps CLI commands to their handler
+functions in custom.py. Commands are organized into logical groups:
+
+- bake: Root commands (version, upgrade)
+- bake sandbox: Sandbox infrastructure lifecycle (create, validate)
+- bake repo: Git repository operations (build, validate, setup)
+- bake yaml: YAML configuration export
+- bake validate: Validation aliases for convenience
+- bake image: Image definition management (create, logs, bump, rebuild)
+- bake _builder: Internal commands executed within the builder container
+"""
+
 from azure.cli.core.commands import CliCommandType
 
 from ._client_factory import cf_container_groups

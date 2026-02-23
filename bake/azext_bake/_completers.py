@@ -4,6 +4,17 @@
 # ------------------------------------
 # pylint: disable=inconsistent-return-statements, unused-argument
 
+"""
+CLI tab completion providers for the 'az bake' extension.
+
+This module implements completers that provide tab-completion suggestions for
+CLI parameters. These enhance the user experience by enabling auto-completion
+of values like GitHub release versions and Azure resource names.
+
+Completers are decorated with @Completer and registered with parameters in
+_params.py to provide context-aware suggestions.
+"""
+
 # import requests
 
 from azure.cli.core.commands.parameters import get_resources_in_resource_group, get_resources_in_subscription
@@ -27,10 +38,29 @@ logger = get_logger(__name__)
 
 @Completer
 def get_version_completion_list(cmd, prefix, ns, **kwargs):
+    """
+    Provide tab completion for az bake extension versions.
+
+    Returns a list of available release versions from GitHub releases,
+    enabling users to easily select a specific version for upgrade.
+    """
     return [r['tag_name'] for r in get_github_releases()]
 
 
 def get_resource_name_completion_list(group_option='resource_group_name', resource_type=None):
+    """
+    Factory for creating resource name completers.
+
+    Creates a completer that suggests Azure resource names, either from a
+    specific resource group (if provided) or from the entire subscription.
+
+    Args:
+        group_option: Name of the namespace attribute containing the resource group.
+        resource_type: Optional filter for specific Azure resource types.
+
+    Returns:
+        A Completer function for resource name suggestions.
+    """
 
     @Completer
     def completer(cmd, prefix, ns, **kwargs):
