@@ -110,17 +110,36 @@ jobs:
         run: |
           echo "IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Build and push Docker image
+      - name: Build Docker image
         uses: docker/build-push-action@v3
         env:
           BUILD_DATE: ${{ steps.build_date.outputs.date }}
           IMAGE_VERSION: ${{ steps.preview_version.outputs.version }}
         with:
           context: ./builder
-          push: ${{ github.event_name != 'pull_request' }}
+          load: true
+          push: false
           build-args: |
             BUILD_DATE=${{ env.BUILD_DATE }}
             IMAGE_VERSION=${{ env.IMAGE_VERSION }}
             REPO_URL=https://github.com/${{ github.repository }}
           tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
+
+      - name: Run tests on Docker image
+        env:
+          IMAGE_VERSION: ${{ steps.preview_version.outputs.version }}
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/bake/tests:/bake/tests" \
+            -v "${{ github.workspace }}/bake/pytest.ini:/bake/pytest.ini" \
+            --entrypoint "" \
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }} \
+            sh -c "pip install pytest pytest-cov && cd /bake && pytest tests/ -v --tb=short"
+
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE_VERSION: ${{ steps.preview_version.outputs.version }}
+        run: |
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
