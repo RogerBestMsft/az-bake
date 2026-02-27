@@ -136,18 +136,13 @@ jobs:
             --entrypoint "" \
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }} \
             sh -c '
-              if [ -x /opt/az/bin/python3 ]; then
-                PY=/opt/az/bin/python3
-              elif [ -x /opt/az/bin/python ]; then
-                PY=/opt/az/bin/python
-              else
-                echo "ERROR: Cannot find Azure CLI Python interpreter" >&2
-                ls -la /opt/az/bin/ 2>/dev/null || echo "/opt/az/bin/ does not exist"
-                head -5 /usr/bin/az 2>/dev/null
-                exit 1
-              fi
+              PY=python3
+              if command -v python3.12 >/dev/null 2>&1; then PY=python3.12; fi
+              AZ_SITE=/usr/lib64/az/lib/python3.12/site-packages
               echo "Using Python: $PY"
-              $PY -m pip install pytest pytest-cov && cd /bake && $PY -m pytest tests/ -v --tb=short
+              echo "Azure CLI site-packages: $AZ_SITE"
+              $PY -m pip install --target /tmp/testpkgs pytest pytest-cov
+              cd /bake && PYTHONPATH="$AZ_SITE:/tmp/testpkgs" $PY -m pytest tests/ -v --tb=short
             '
 
       - name: Push Docker image
