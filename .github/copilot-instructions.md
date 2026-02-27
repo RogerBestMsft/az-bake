@@ -4,6 +4,12 @@
 
 `az-bake` is an Azure CLI extension (`az bake`) for building custom VM images using Packer. The extension source lives in `bake/azext_bake/` and is packaged via `azdev`.
 
+## Documentation
+- The [README](README.md) provides an overview, installation instructions, and usage examples.
+- Include documentation for new commands in `_help.py` and update the README as needed.
+- The [CHANGELOG](HISTORY.rst) must be updated with each release, detailing new features, fixes, and breaking changes.
+- Include documenation within the codebase (docstrings, comments) to explain complex logic and provide context for future maintainers.
+
 ## Code Quality — Linter & Style Checks
 
 All changes to extension source code **must** pass both checks before committing:
