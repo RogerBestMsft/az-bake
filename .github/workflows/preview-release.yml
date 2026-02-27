@@ -135,7 +135,7 @@ jobs:
             -v "${{ github.workspace }}/bake/pytest.ini:/bake/pytest.ini" \
             --entrypoint "" \
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }} \
-            sh -c "pip3 install pytest pytest-cov && cd /bake && pytest tests/ -v --tb=short"
+            sh -c "python3 -m pip install pytest pytest-cov && cd /bake && python3 -m pytest tests/ -v --tb=short"
 
       - name: Push Docker image
         if: github.event_name != 'pull_request'
