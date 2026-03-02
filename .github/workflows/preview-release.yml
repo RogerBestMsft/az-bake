@@ -56,6 +56,11 @@ jobs:
       - name: Build CLI
         run: bash ./tools/build-cli.sh
 
+      - name: Run Tests
+        run: |
+          pip install ./bake[dev]
+          pytest bake/tests/ -v --tb=short
+
       # This must be run LAST - AFTER everything is added to release_assets
       - name: Prepare Release Assets
         id: prepare_assets
@@ -125,20 +130,6 @@ jobs:
             REPO_URL=https://github.com/${{ github.repository }}
           tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
-
-      - name: Run tests on Docker image
-        env:
-          IMAGE_VERSION: ${{ steps.preview_version.outputs.version }}
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}/bake:/bake" \
-            --entrypoint "" \
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }} \
-            sh -c '
-              tdnf install -y python3-pip
-              pip3 install /bake[dev]
-              cd /bake && pytest tests/ -v --tb=short
-            '
 
       - name: Push Docker image
         if: github.event_name != 'pull_request'
