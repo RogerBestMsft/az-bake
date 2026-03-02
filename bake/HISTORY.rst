@@ -3,6 +3,14 @@
 Release History
 ===============
 
+0.4.1.pre0
+++++++
+* Add ``--patch`` flag to ``bump-version.py`` for explicit patch version bumps.
+* Add ``--pre`` flag to ``bump-version.py`` to create prerelease versions matching the preview-release workflow format (``VERSION.SUFFIX<NUMBER>``).
+* Add ``--pre-number`` option to ``bump-version.py`` to set the prerelease number (maps to ``GITHUB_RUN_NUMBER`` in CI).
+* ``bump-version.py`` now reads the base version from ``HISTORY.rst`` instead of ``setup.py`` for resilience against dirty prerelease state.
+* ``bump-version.py`` now updates all files (``setup.py``, ``HISTORY.rst``, ``Dockerfile``, ``README.md``) for both standard and prerelease bumps, with graceful skips when version strings are not found.
+
 0.4.0
 ++++++
 * Add ``--wait`` flag to ``az bake repo build`` for CI integration: polls container builds, streams logs, emits GitHub Actions annotations, step summary, and GITHUB_OUTPUT.
