@@ -59,6 +59,8 @@ examples:
     text: az bake repo build --repo . --wait
   - name: Build specific images and wait.
     text: az bake repo build --repo . --images myImage1 myImage2 --wait
+  - name: Build using the latest prerelease template version.
+    text: az bake repo build --repo . --pre --wait
 """
 
 helps['bake repo setup'] = """

@@ -122,6 +122,8 @@ def load_arguments(self, _):
         c.argument('repository_revision', options_list=['--repo-revision'], arg_group='Repo', help='Repository revision.')
         c.argument('wait', options_list=['--wait'], action='store_true', default=False,
                    help='Wait for all image builds to complete and stream logs. Recommended for CI.')
+        c.argument('prerelease', options_list=['--pre'], action='store_true', arg_group='Advanced',
+                   help='Use the latest template prerelease version.')
         # c.ignore('is_ci')
         c.ignore('sandbox')
         c.ignore('gallery')

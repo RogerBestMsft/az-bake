@@ -325,3 +325,52 @@ class TestProcessSandboxCreateNamespace:
 
         with pytest.raises(InvalidArgumentValueError, match='vnet'):
             process_sandbox_create_namespace(mock_cmd, ns)
+
+
+# -------------------------------------------------------
+# Integration: process_bake_repo_build_namespace
+# -------------------------------------------------------
+
+class TestProcessBakeRepoBuildNamespace:
+    """Tests for repo build validation including prerelease pass-through."""
+
+    def test_local_valid_with_prerelease(self, mock_cmd, tmp_repo, clean_env):
+        from azext_bake._validators import process_bake_repo_build_namespace
+
+        ns = make_namespace(
+            repository_path=str(tmp_repo),
+            image_names=None,
+            images=None,
+            sandbox=None,
+            gallery=None,
+            bake_obj=None,
+            repository_url='https://github.com/testorg/testrepo',
+            repository_token='fake-token',
+            repository_revision=None,
+            repo=None,
+            prerelease=True,
+        )
+        process_bake_repo_build_namespace(mock_cmd, ns)
+        # prerelease should be preserved on the namespace
+        assert ns.prerelease is True
+        assert ns.repo is not None
+
+    def test_local_valid_without_prerelease(self, mock_cmd, tmp_repo, clean_env):
+        from azext_bake._validators import process_bake_repo_build_namespace
+
+        ns = make_namespace(
+            repository_path=str(tmp_repo),
+            image_names=None,
+            images=None,
+            sandbox=None,
+            gallery=None,
+            bake_obj=None,
+            repository_url='https://github.com/testorg/testrepo',
+            repository_token='fake-token',
+            repository_revision=None,
+            repo=None,
+            prerelease=False,
+        )
+        process_bake_repo_build_namespace(mock_cmd, ns)
+        assert ns.prerelease is False
+        assert ns.repo is not None

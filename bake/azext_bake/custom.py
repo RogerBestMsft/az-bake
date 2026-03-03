@@ -132,14 +132,13 @@ def bake_sandbox_validate(cmd, sandbox_resource_group_name: str, gallery_resourc
 def bake_repo_build(cmd, repository_path, image_names: Sequence[str] = None, sandbox: Sandbox = None,
                     gallery: Gallery = None, images: Sequence[Image] = None, repository_url: str = None,
                     repository_token: str = None, repository_revision: str = None, repo: Repo = None,
-                    wait: bool = False):
+                    wait: bool = False, prerelease: bool = False):
 
     hook = cmd.cli_ctx.get_progress_controller()
     hook.begin()
 
     version = None
     template_file = None
-    prerelease = False
     templates_url = None
 
     if template_file:
