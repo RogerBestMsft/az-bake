@@ -6,7 +6,6 @@
 import os
 
 from pathlib import Path
-from re import search
 
 path_root = Path(__file__).resolve().parent.parent
 path_bake = path_root / 'bake'
@@ -14,15 +13,8 @@ path_bake = path_root / 'bake'
 is_ci = os.environ.get('CI', False)
 github_output = os.environ.get('GITHUB_OUTPUT', None)
 
-version = None
-
-with open(path_bake / 'setup.py', 'r') as f:
-    for line in f:
-        if line.startswith('VERSION'):
-            txt = str(line).rstrip()
-            match = search(r'VERSION = [\'\"](.*)[\'\"]$', txt)
-            if match:
-                version = match.group(1)
+with open(path_root / 'VERSION', 'r') as f:
+    version = f.read().strip()
 
 if version:
     if github_output and is_ci:

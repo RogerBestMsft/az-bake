@@ -3,13 +3,13 @@
 Release History
 ===============
 
-0.4.1.pre0
+0.4.1
 ++++++
-* Add ``--patch`` flag to ``bump-version.py`` for explicit patch version bumps.
-* Add ``--pre`` flag to ``bump-version.py`` to create prerelease versions matching the preview-release workflow format (``VERSION.SUFFIX<NUMBER>``).
-* Add ``--pre-number`` option to ``bump-version.py`` to set the prerelease number (maps to ``GITHUB_RUN_NUMBER`` in CI).
-* ``bump-version.py`` now reads the base version from ``HISTORY.rst`` instead of ``setup.py`` for resilience against dirty prerelease state.
-* ``bump-version.py`` now updates all files (``setup.py``, ``HISTORY.rst``, ``Dockerfile``, ``README.md``) for both standard and prerelease bumps, with graceful skips when version strings are not found.
+* Centralize versioning: single ``VERSION`` file at the repo root is the source of truth.
+* ``setup.py`` reads version dynamically from ``VERSION`` file.
+* GitHub Action workflows set or override the version via ``VERSION`` file.
+* ``bump-version.py`` now only updates ``VERSION`` and ``HISTORY.rst``.
+* Removed hardcoded version strings from ``README.md``, ``Dockerfile``, and ``setup.py``.
 
 0.4.0
 ++++++

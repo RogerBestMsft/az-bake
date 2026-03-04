@@ -1,13 +1,16 @@
 name: Release
 
 on:
-  workflow_dispatch: # allow workflow to be manually triggered
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.5.0). Leave empty to use VERSION file.'
+        required: false
+        default: ''
   push:
     branches: [main]
     paths:
-      # the version number changes in setup.py
-      # so only release if that file has changed
-      - 'bake/setup.py'
+      - 'VERSION'
 
 env:
   IMAGE_NAME: builder
@@ -28,6 +31,20 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: await io.mkdirP('release_assets')
+
+      - name: Resolve version
+        id: resolve_version
+        run: |
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "$INPUT_VERSION" > VERSION
+            echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+            echo "Using manual version: $INPUT_VERSION"
+          else
+            FILE_VERSION=$(cat VERSION | tr -d '[:space:]')
+            echo "version=$FILE_VERSION" >> $GITHUB_OUTPUT
+            echo "Using VERSION file: $FILE_VERSION"
+          fi
 
       - name: Get CLI Version
         id: cli_version

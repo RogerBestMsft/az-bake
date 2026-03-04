@@ -3,7 +3,6 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from re import search
 
 ci = os.environ.get('CI', False)
 
@@ -11,15 +10,10 @@ path_root = Path(__file__).resolve().parent.parent
 path_bake = path_root / 'bake'
 path_assets = path_root / 'release_assets' if ci else path_root / '.local/release_assets'
 
-# Get CLI version
-with open(path_bake / 'setup.py', 'r') as f:
-    for line in f:
-        if line.startswith('VERSION'):
-            txt = str(line).rstrip()
-            match = search(r'VERSION = [\'\"](.*)[\'\"]$', txt)
-            if match:
-                cli_version = match.group(1)
-                cli_name = 'bake-{}-py3-none-any.whl'.format(cli_version)
+# Get CLI version from the VERSION file at the repo root
+with open(path_root / 'VERSION', 'r') as f:
+    cli_version = f.read().strip()
+cli_name = 'bake-{}-py3-none-any.whl'.format(cli_version)
 
 version = f'v{cli_version}'
 download_url = f'https://github.com/rogerbestmsft/az-bake/releases/download/{version}' if ci else path_assets

@@ -6,7 +6,6 @@
 import argparse
 
 from pathlib import Path
-from re import search
 
 from packaging.version import parse as parse_version  # pylint: disable=unresolved-import
 
@@ -39,35 +38,12 @@ if sum([major, minor, patch]) > 1:
 if not major and not minor:
     patch = True
 
-version = None
-version_setup = None
-
 path_root = Path(__file__).resolve().parent.parent
 path_bake = path_root / 'bake'
-path_builder = path_root / 'builder'
 
-# Read the base version from HISTORY.rst (stable source of truth)
-with open(path_bake / 'HISTORY.rst', 'r') as f:
-    for line in f:
-        m = search(r'^(\d+\.\d+\.\d+)\s*$', line)
-        if m:
-            version = m.group(1)
-            break
-
-if not version:
-    raise ValueError('no version found in HISTORY.rst')
-
-# Also read the raw VERSION from setup.py for replacement
-with open(path_bake / 'setup.py', 'r') as f:
-    for line in f:
-        if line.startswith('VERSION'):
-            txt = str(line).rstrip()
-            match = search(r"VERSION = ['\"]([^'\"]*)['\"]", txt)
-            if match:
-                version_setup = match.group(1)
-
-if not version_setup:
-    raise ValueError('no version found in setup.py')
+# Read the current version from the VERSION file (single source of truth)
+with open(path_root / 'VERSION', 'r') as f:
+    version = f.read().strip()
 
 version_old = parse_version(version)
 
@@ -88,24 +64,13 @@ else:
 
 print(f'bumping version: {version_old.public} -> {version_new_str}')
 
-fmt_setup = 'VERSION = \'{}\''
-fmt_readme = 'https://github.com/rogerbestmsft/az-bake/releases/latest/download/bake-{}-py3-none-any.whl'
-fmt_docker = 'https://github.com/rogerbestmsft/az-bake/releases/latest/download/bake-{}-py3-none-any.whl'
 fmt_history = '{}\n++++++\n{}\n\n{}'
 
 
-print('..updating setup.py')
+print('..updating VERSION')
 
-with open(path_bake / 'setup.py', 'r') as f:
-    setup = f.read()
-
-if fmt_setup.format(version_setup) not in setup:
-    raise ValueError('version string not found in setup.py')
-
-setup = setup.replace(fmt_setup.format(version_setup), fmt_setup.format(version_new_str))
-
-with open(path_bake / 'setup.py', 'w') as f:
-    f.write(setup)
+with open(path_root / 'VERSION', 'w') as f:
+    f.write(version_new_str + '\n')
 
 
 print('..updating HISTORY.rst')
@@ -121,30 +86,4 @@ history = history.replace(version_old.public, fmt_history.format(version_new_str
 with open(path_bake / 'HISTORY.rst', 'w') as f:
     f.write(history)
 
-
-print('..updating Dockerfile')
-
-with open(path_builder / 'Dockerfile', 'r') as f:
-    docker = f.read()
-
-if fmt_docker.format(version_old.public) in docker:
-    docker = docker.replace(fmt_docker.format(version_old.public), fmt_docker.format(version_new_str))
-
-    with open(path_builder / 'Dockerfile', 'w') as f:
-        f.write(docker)
-else:
-    print('  ..skipped (version string not found, Dockerfile uses build args)')
-
-
-print('..updating README.md')
-
-with open(path_root / 'README.md', 'r') as f:
-    readme = f.read()
-
-if fmt_readme.format(version_old.public) in readme:
-    readme = readme.replace(fmt_readme.format(version_old.public), fmt_readme.format(version_new_str))
-
-    with open(path_root / 'README.md', 'w') as f:
-        f.write(readme)
-else:
-    print('  ..skipped (version string not found in README.md)')
+print('done.')

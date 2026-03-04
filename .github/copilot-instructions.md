@@ -35,8 +35,9 @@ The CI workflow (`ci.yml`) runs both checks on every push and PR via `tools/buil
 | `bake/azext_bake/_help.py` | Help text |
 | `bake/azext_bake/_validators.py` | Input validators |
 | `bake/azext_bake/templates/` | Bicep, Packer, and install templates |
-| `bake/setup.py` | Package config — `VERSION` is the single source of truth |
+| `bake/setup.py` | Package config — reads version from `VERSION` file |
 | `bake/HISTORY.rst` | Release notes — must have an entry for each version |
+| `VERSION` | Single source of truth for the extension version |
 | `tests/` | Pytest test suite |
 | `tools/` | CI/CD helper scripts used by GitHub Actions workflows |
 | `builder/` | Docker image for the bake builder |
@@ -59,12 +60,16 @@ Follow this order when adding a new command:
 | `tools/cli-version.py` | `release.yml`, `preview-release.yml` | Reads `VERSION` from `bake/setup.py` and extracts release notes from `HISTORY.rst` |
 | `tools/build-cli.sh` | `release.yml`, `preview-release.yml`, `ci.yml` | Runs linter, style checks, and builds the extension wheel |
 | `tools/prepare-assets.py` | `release.yml`, `preview-release.yml` | Creates `index.json`, compiles Bicep templates, copies schemas to release assets |
-| `tools/bump-version.py` | Manual | Bumps version in `bake/setup.py`, `HISTORY.rst`, `builder/Dockerfile`, `README.md` |
+| `tools/bump-version.py` | Manual | Bumps version in `VERSION` and `HISTORY.rst` |
 
 ## Version Management
 
-- The canonical version is `VERSION` in `bake/setup.py`.
-- Use the **bump-version** skill (`/bump-version` in chat) to bump versions. The skill runs `tools/bump-version.py` non-interactively, updating `setup.py`, `HISTORY.rst`, `Dockerfile`, and `README.md`.
+- The canonical version is the `VERSION` file at the repository root.
+- `bake/setup.py` reads the version dynamically from the `VERSION` file at build time.
+- GitHub Action workflows read from (or override) the `VERSION` file:
+  - `release.yml` triggers on `VERSION` file changes or manual dispatch with an optional `version` input.
+  - `preview-release.yml` reads the base version from `VERSION`, computes a preview version, and writes it back before building.
+- Use the **bump-version** skill (`/bump-version` in chat) to bump versions. The skill runs `tools/bump-version.py` non-interactively, updating the `VERSION` file and `HISTORY.rst`.
 - Preview releases append a PEP 440 suffix: `{VERSION}.{suffix}{run_number}` (e.g. `0.4.0.dev42`).
 - The `builder/Dockerfile` uses `IMAGE_VERSION` and `REPO_URL` build args — these are passed in by the workflows.
 

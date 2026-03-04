@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       suffix:
-        description: 'Preview version suffix (e.g. alpha, beta, rc1). Defaults to "dev".'
+        description: 'Preview version suffix (e.g. alpha, beta, rc1). Defaults to "pre".'
         required: false
-        default: 'dev'
+        default: 'pre'
 
 # only allow one preview release at a time per branch
 concurrency:
@@ -35,39 +35,30 @@ jobs:
       - name: Get CLI Version
         id: cli_version
         run: |
-          python3 << 'PYEOF'
-          import os, re
+          BASE_VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "version=$BASE_VERSION" >> $GITHUB_OUTPUT
+          echo "CLI Version: $BASE_VERSION"
 
-          version = None
-          with open('bake/setup.py') as f:
-              for line in f:
-                  if line.startswith('VERSION'):
-                      m = re.search(r"VERSION = ['\"](.*)['\"]", line.rstrip())
-                      if m:
-                          version = m.group(1)
+          python3 << PYEOF
+          import os
 
+          version = '$BASE_VERSION'
           github_output = os.environ['GITHUB_OUTPUT']
 
-          if version:
-              with open(github_output, 'a') as f:
-                  f.write(f'version={version}\n')
-              print(f'CLI Version: {version}')
-
           changes = []
-          if version:
-              counter = 0
-              with open('bake/HISTORY.rst') as f:
-                  for line in f:
-                      if line.startswith(version):
-                          next(f)  # skip separator
+          counter = 0
+          with open('bake/HISTORY.rst') as f:
+              for line in f:
+                  if line.startswith(version):
+                      next(f)  # skip separator
+                      change = next(f, '')
+                      while change and len(change) > 1 and not change.isspace():
+                          changes.append(change.rstrip())
                           change = next(f, '')
-                          while change and len(change) > 1 and not change.isspace():
-                              changes.append(change.rstrip())
-                              change = next(f, '')
-                              counter += 1
-                              if counter > 30:
-                                  break
-                          break
+                          counter += 1
+                          if counter > 30:
+                              break
+                      break
 
           if changes:
               with open(github_output, 'a') as f:
@@ -86,12 +77,12 @@ jobs:
           echo "version=${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
           echo "Preview version: ${PREVIEW_VERSION}"
 
-      - name: Stamp preview version into setup.py
+      - name: Stamp preview version into VERSION file
         run: |
           PREVIEW_VERSION="${{ steps.preview_version.outputs.version }}"
-          sed -i "s/^VERSION = .*/VERSION = '${PREVIEW_VERSION}'/" bake/setup.py
-          echo "--- setup.py version ---"
-          grep VERSION bake/setup.py
+          echo "$PREVIEW_VERSION" > VERSION
+          echo "--- VERSION file ---"
+          cat VERSION
 
       - name: Build CLI
         run: |
@@ -124,20 +115,15 @@ jobs:
           python3 << 'PYEOF'
           import json, os, shutil, subprocess
           from pathlib import Path
-          from re import search
 
           path_root = Path.cwd()
           path_bake = path_root / 'bake'
           path_assets = path_root / 'release_assets'
 
-          # Get CLI version
-          with open(path_bake / 'setup.py') as f:
-              for line in f:
-                  if line.startswith('VERSION'):
-                      m = search(r"VERSION = ['\"](.*)['\"]", line.rstrip())
-                      if m:
-                          cli_version = m.group(1)
-                          cli_name = f'bake-{cli_version}-py3-none-any.whl'
+          # Get CLI version from the VERSION file
+          with open(path_root / 'VERSION') as f:
+              cli_version = f.read().strip()
+          cli_name = f'bake-{cli_version}-py3-none-any.whl'
 
           version = f'v{cli_version}'
           download_url = f'https://github.com/rogerbestmsft/az-bake/releases/download/{version}'

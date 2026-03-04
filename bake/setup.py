@@ -6,7 +6,7 @@
 # ------------------------------------
 
 
-from codecs import open
+import os
 
 from setuptools import find_packages, setup
 
@@ -16,8 +16,11 @@ except ImportError:
     from distutils import log as logger
     logger.warn("Wheel is not available, disabling bdist_wheel hook")
 
-# Must match a HISTORY.rst entry.
-VERSION = '0.4.1.pre0'
+# Read version from the VERSION file at the repo root.
+# In CI, workflows update this file before building.
+_version_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'VERSION')
+with open(_version_file) as f:
+    VERSION = f.read().strip()
 
 # The full list of classifiers is available at
 # https://pypi.python.org/pypi?%3Aaction=list_classifiers
