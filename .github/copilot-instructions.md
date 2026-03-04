@@ -64,7 +64,7 @@ Follow this order when adding a new command:
 ## Version Management
 
 - The canonical version is `VERSION` in `bake/setup.py`.
-- Use `tools/bump-version.py` to bump versions — it updates all files that reference the version.
+- Use the **bump-version** skill (`/bump-version` in chat) to bump versions. The skill runs `tools/bump-version.py` non-interactively, updating `setup.py`, `HISTORY.rst`, `Dockerfile`, and `README.md`.
 - Preview releases append a PEP 440 suffix: `{VERSION}.{suffix}{run_number}` (e.g. `0.4.0.dev42`).
 - The `builder/Dockerfile` uses `IMAGE_VERSION` and `REPO_URL` build args — these are passed in by the workflows.
 
@@ -84,7 +84,9 @@ pytest tests/ -v --tb=short
 
 ## Development Environment Setup
 
-Use the setup scripts which handle venv creation, azdev installation, and extension registration:
+Use the **setup-dev** skill (`/setup-dev` in chat) for guided environment setup, cleanup, and troubleshooting. The skill replaces manual script invocation with agent-driven steps.
+
+Alternatively, run the scripts directly:
 
 - **Windows**: `.\setup-dev.ps1`
 - **Linux/macOS**: `./setup-dev.sh`
@@ -92,6 +94,14 @@ Use the setup scripts which handle venv creation, azdev installation, and extens
 Both accept `--clean`, `--skip-venv`, `--skip-azdev`, and `--python <command>` flags.
 
 Requires: Python 3.8+, pip, Git. Azure CLI recommended for runtime testing.
+
+## Building the Extension
+
+Use the **build-cli** skill (`/build-cli` in chat) to run linter checks, style checks, and build the extension wheel. The skill automates the `tools/build-cli.sh` workflow.
+
+## Preparing Release Assets
+
+Use the **prepare-assets** skill (`/prepare-assets` in chat) to generate release assets locally. The skill runs `tools/prepare-assets.py` non-interactively, producing `index.json`, compiled Bicep templates, schemas, and `templates.json` in `.local/release_assets/`.
 
 ## Dependencies
 

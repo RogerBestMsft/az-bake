@@ -44,4 +44,5 @@ RUN az extension add --source ${REPO_URL}/releases/download/v${IMAGE_VERSION}/ba
 # Terminate container on stop
 STOPSIGNAL SIGTERM
 
+CMD [ "" ]
 ENTRYPOINT ["az", "bake", "_builder", "build", "--verbose"]
