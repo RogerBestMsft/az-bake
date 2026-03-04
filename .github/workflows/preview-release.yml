@@ -34,15 +34,55 @@ jobs:
 
       - name: Get CLI Version
         id: cli_version
-        run: python ./tools/cli-version.py
+        run: |
+          python3 << 'PYEOF'
+          import os, re
+
+          version = None
+          with open('bake/setup.py') as f:
+              for line in f:
+                  if line.startswith('VERSION'):
+                      m = re.search(r"VERSION = ['\"](.*)['\"]", line.rstrip())
+                      if m:
+                          version = m.group(1)
+
+          github_output = os.environ['GITHUB_OUTPUT']
+
+          if version:
+              with open(github_output, 'a') as f:
+                  f.write(f'version={version}\n')
+              print(f'CLI Version: {version}')
+
+          changes = []
+          if version:
+              counter = 0
+              with open('bake/HISTORY.rst') as f:
+                  for line in f:
+                      if line.startswith(version):
+                          next(f)  # skip separator
+                          change = next(f, '')
+                          while change and len(change) > 1 and not change.isspace():
+                              changes.append(change.rstrip())
+                              change = next(f, '')
+                              counter += 1
+                              if counter > 30:
+                                  break
+                          break
+
+          if changes:
+              with open(github_output, 'a') as f:
+                  f.write(f'changes={",".join(changes)}\n')
+          PYEOF
 
       - name: Compute preview version
         id: preview_version
         run: |
           BASE_VERSION="${{ steps.cli_version.outputs.version }}"
           SUFFIX="${{ github.event.inputs.suffix }}"
+          # Strip any existing pre-release suffix to get clean X.Y.Z
+          CLEAN_VERSION=$(echo "$BASE_VERSION" | grep -oP '^\d+\.\d+\.\d+')
           # PEP 440 valid format: X.Y.Z.devN (e.g. 0.4.0.dev42)
-          PREVIEW_VERSION="${BASE_VERSION}.${SUFFIX}${GITHUB_RUN_NUMBER}"
+          PREVIEW_VERSION="${CLEAN_VERSION}.${SUFFIX}${GITHUB_RUN_NUMBER}"
           echo "version=${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
           echo "Preview version: ${PREVIEW_VERSION}"
 
@@ -54,12 +94,147 @@ jobs:
           grep VERSION bake/setup.py
 
       - name: Build CLI
-        run: bash ./tools/build-cli.sh
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+
+          pip install azdev
+          pip install setuptools==70.0.0
+
+          azdev setup -r $PWD -e bake
+
+          echo "Running linter"
+          azdev linter bake
+
+          echo "Running style checks"
+          azdev style bake
+
+          echo "Building extension"
+          azdev extension build bake --dist-dir ./release_assets
+
+      - name: Run Tests
+        run: |
+          pip install ./bake[dev]
+          pytest bake/tests/ -v --tb=short
 
       # This must be run LAST - AFTER everything is added to release_assets
       - name: Prepare Release Assets
         id: prepare_assets
-        run: python ./tools/prepare-assets.py
+        run: |
+          python3 << 'PYEOF'
+          import json, os, shutil, subprocess
+          from pathlib import Path
+          from re import search
+
+          path_root = Path.cwd()
+          path_bake = path_root / 'bake'
+          path_assets = path_root / 'release_assets'
+
+          # Get CLI version
+          with open(path_bake / 'setup.py') as f:
+              for line in f:
+                  if line.startswith('VERSION'):
+                      m = search(r"VERSION = ['\"](.*)['\"]", line.rstrip())
+                      if m:
+                          cli_version = m.group(1)
+                          cli_name = f'bake-{cli_version}-py3-none-any.whl'
+
+          version = f'v{cli_version}'
+          download_url = f'https://github.com/rogerbestmsft/az-bake/releases/download/{version}'
+
+          index = {
+              'extensions': {
+                  'bake': [
+                      {
+                          'downloadUrl': f'{download_url}/{cli_name}',
+                          'filename': cli_name,
+                          'metadata': {
+                              'azext.isPreview': True,
+                              'azext.isExperimental': True,
+                              'azext.minCliCoreVersion': '2.40.0',
+                              'azext.maxCliCoreVersion': '3.0.0',
+                              'classifiers': [
+                                  'Development Status :: 4 - Beta',
+                                  'Intended Audience :: Developers',
+                                  'Intended Audience :: System Administrators',
+                                  'Programming Language :: Python',
+                                  'Programming Language :: Python :: 3',
+                                  'Programming Language :: Python :: 3.7',
+                                  'Programming Language :: Python :: 3.8',
+                                  'Programming Language :: Python :: 3.9',
+                                  'Programming Language :: Python :: 3.10',
+                                  'License :: OSI Approved :: MIT License',
+                              ],
+                              'extensions': {
+                                  'python.details': {
+                                      'contacts': [
+                                          {
+                                              'email': 'rbest@microsoft.com',
+                                              'name': 'Microsoft Corporation',
+                                              'role': 'author'
+                                          }
+                                      ],
+                                      'document_names': {'description': 'DESCRIPTION.rst'},
+                                      'project_urls': {'Home': 'https://github.com/rogerbestmsft/az-bake'}
+                                  }
+                              },
+                              'generator': 'bdist_wheel (0.30.0)',
+                              'license': 'MIT',
+                              'metadata_version': '2.0',
+                              'name': 'bake',
+                              'summary': 'Microsoft Azure Command-Line Tools Custom Image Helper Extension',
+                              'version': cli_version
+                          }
+                      }
+                  ]
+              }
+          }
+
+          with open(path_assets / 'index.json', 'w') as f:
+              json.dump(index, f, ensure_ascii=False, indent=4, sort_keys=True)
+
+          path_templates = path_assets / 'templates'
+          shutil.copytree(path_bake / 'azext_bake' / 'templates', path_templates)
+
+          bicep_templates = []
+          for dirpath, dirnames, files in os.walk(path_templates):
+              if not path_templates.samefile(dirpath) and Path(dirpath).parent.samefile(path_templates):
+                  bicep_templates.extend([Path(dirpath) / f for f in files if f.lower().endswith('.bicep')])
+
+          for bt in bicep_templates:
+              print(f'Compiling template: {bt}')
+              subprocess.run(['az', 'bicep', 'build', '-f', str(bt)], check=True)
+
+          templates = {}
+          for dirpath, dirnames, files in os.walk(path_templates):
+              if not path_templates.samefile(dirpath) and Path(dirpath).parent.samefile(path_templates):
+                  templates[Path(dirpath).name] = {}
+                  for f in files:
+                      templates[Path(dirpath).name][f] = {'downloadUrl': f'{download_url}/{f}'}
+
+          for dirpath, dirnames, files in os.walk(path_templates):
+              if not path_templates.samefile(dirpath) and Path(dirpath).parent.samefile(path_templates):
+                  for f in files:
+                      shutil.copy2(Path(dirpath) / f, path_assets)
+
+          with open(path_assets / 'templates.json', 'w') as f:
+              json.dump(templates, f, ensure_ascii=False, indent=4, sort_keys=True)
+
+          shutil.copy2(path_root / 'schema' / 'bake.schema.json', path_assets)
+          shutil.copy2(path_root / 'schema' / 'image.schema.json', path_assets)
+
+          assets = []
+          with os.scandir(path_assets) as s:
+              for f in s:
+                  if f.is_file():
+                      print(f.path)
+                      assets.append({'name': f.name, 'path': f.path})
+
+          github_output = os.environ.get('GITHUB_OUTPUT')
+          if github_output:
+              with open(github_output, 'a') as f:
+                  f.write(f'assets={json.dumps(assets)}')
+          PYEOF
 
       - name: Create Pre-Release
         id: publish_assets
@@ -110,17 +285,25 @@ jobs:
         run: |
           echo "IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Build and push Docker image
+      - name: Build Docker image
         uses: docker/build-push-action@v3
         env:
           BUILD_DATE: ${{ steps.build_date.outputs.date }}
           IMAGE_VERSION: ${{ steps.preview_version.outputs.version }}
         with:
           context: ./builder
-          push: ${{ github.event_name != 'pull_request' }}
+          load: true
+          push: false
           build-args: |
             BUILD_DATE=${{ env.BUILD_DATE }}
             IMAGE_VERSION=${{ env.IMAGE_VERSION }}
             REPO_URL=https://github.com/${{ github.repository }}
           tags: |
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
+
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE_VERSION: ${{ steps.preview_version.outputs.version }}
+        run: |
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
