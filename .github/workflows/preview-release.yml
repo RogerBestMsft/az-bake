@@ -285,6 +285,9 @@ jobs:
         run: |
           echo "IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
+      - name: Log Image Version
+        run: echo "Building Docker image with IMAGE_VERSION=${{ steps.preview_version.outputs.version }}"
+
       - name: Build Docker image
         uses: docker/build-push-action@v3
         env:
