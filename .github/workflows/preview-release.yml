@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       suffix:
-        description: 'Preview version suffix (e.g. alpha, beta, rc1). Defaults to "pre".'
+        description: 'Preview version suffix (e.g. dev, alpha, beta, rc). Defaults to "dev".'
         required: false
-        default: 'pre'
+        default: 'dev'
 
 # only allow one preview release at a time per branch
 concurrency:
@@ -85,6 +85,7 @@ jobs:
           cat VERSION
 
       - name: Build CLI
+        id: build_cli
         run: |
           python -m venv .venv
           source .venv/bin/activate
@@ -103,6 +104,12 @@ jobs:
           echo "Building extension"
           azdev extension build bake --dist-dir ./release_assets
 
+          # Detect the actual wheel filename (PEP 440 may normalize the version)
+          WHEEL_FILE=$(ls release_assets/*.whl | head -1)
+          WHEEL_NAME=$(basename "$WHEEL_FILE")
+          echo "wheel_name=${WHEEL_NAME}" >> $GITHUB_OUTPUT
+          echo "Built wheel: ${WHEEL_NAME}"
+
       - name: Run Tests
         run: |
           pip install ./bake[dev]
@@ -111,6 +118,8 @@ jobs:
       # This must be run LAST - AFTER everything is added to release_assets
       - name: Prepare Release Assets
         id: prepare_assets
+        env:
+          WHEEL_NAME: ${{ steps.build_cli.outputs.wheel_name }}
         run: |
           python3 << 'PYEOF'
           import json, os, shutil, subprocess
@@ -120,10 +129,12 @@ jobs:
           path_bake = path_root / 'bake'
           path_assets = path_root / 'release_assets'
 
-          # Get CLI version from the VERSION file
+          # Use the actual wheel filename (accounts for PEP 440 normalization)
+          cli_name = os.environ['WHEEL_NAME']
+
+          # Get CLI version from the VERSION file (used for the release tag)
           with open(path_root / 'VERSION') as f:
               cli_version = f.read().strip()
-          cli_name = f'bake-{cli_version}-py3-none-any.whl'
 
           version = f'v{cli_version}'
           download_url = f'https://github.com/rogerbestmsft/az-bake/releases/download/{version}'
@@ -233,7 +244,7 @@ jobs:
 
             const version = '${{ steps.preview_version.outputs.version }}';
             const branch  = '${{ github.ref_name }}';
-            const wheelName = `bake-${version}-py3-none-any.whl`;
+            const wheelName = '${{ steps.build_cli.outputs.wheel_name }}';
             const wheelUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${version}/${wheelName}`;
 
             const releaseResult = await github.rest.repos.createRelease({
