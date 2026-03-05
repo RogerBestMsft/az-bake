@@ -256,6 +256,9 @@ jobs:
               data: fs.readFileSync(a.path)
             }));
 
+      - name: Copy wheel to Docker context
+        run: cp release_assets/bake-*.whl builder/
+
       - name: Get Build Date
         id: build_date
         run: BUILD_DATE="`date -u +"%Y-%m-%dT%H:%M:%SZ"`" && echo "date=$BUILD_DATE" >> $GITHUB_OUTPUT

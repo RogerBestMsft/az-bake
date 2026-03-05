@@ -39,7 +39,8 @@ LABEL maintainer="Microsoft" \
 RUN tdnf install -y packer
 
 # install az-bake
-RUN az extension add --source ${REPO_URL}/releases/download/v${IMAGE_VERSION}/bake-${IMAGE_VERSION}-py3-none-any.whl -y
+COPY bake-*.whl /tmp/
+RUN az extension add --source $(ls /tmp/bake-*.whl) -y
 
 # Terminate container on stop
 STOPSIGNAL SIGTERM
