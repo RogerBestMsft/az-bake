@@ -16,7 +16,7 @@ This module handles interactions with the GitHub API to:
 All API calls include retry logic for transient network failures.
 """
 
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 
 import requests
 
@@ -55,7 +55,9 @@ def get_github_releases(org: str = 'rogerbestmsft', repo: str = 'az-bake', prere
     return [v for v in version_json if v['prerelease'] == prerelease]
 
 
-def get_github_release(org: str = 'rogerbestmsft', repo: str = 'az-bake', version: str = None, prerelease: bool = False) -> dict:
+def get_github_release(
+        org: str = 'rogerbestmsft', repo: str = 'az-bake',
+        version: str = None, prerelease: bool = False) -> dict:
     """
     Get a specific GitHub release.
 
@@ -94,7 +96,9 @@ def get_github_release(org: str = 'rogerbestmsft', repo: str = 'az-bake', versio
     return version_res.json()
 
 
-def get_github_latest_release_version(org: str = 'rogerbestmsft', repo: str = 'az-bake', prerelease: bool = False) -> str:
+def get_github_latest_release_version(
+        org: str = 'rogerbestmsft', repo: str = 'az-bake',
+        prerelease: bool = False) -> str:
     """Get the tag name of the latest release (e.g., 'v1.2.3')."""
     logger.info(f'Getting latest release version from GitHub ({org}/{repo})')
     version_json = get_github_release(org, repo, prerelease=prerelease)

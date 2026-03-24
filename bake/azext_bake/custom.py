@@ -211,8 +211,9 @@ def bake_repo_build(cmd, repository_path, image_names: Sequence[str] = None, san
 
         hook.add(message=f'Deploying {image.name} builder')
         logger.info(f'Deploying {image.name} builder...')
-        deployment, outputs = deploy_arm_template_at_resource_group(cmd, sandbox.resource_group, template_file=template_file,
-                                                                    template_uri=template_uri, parameters=[image_params])
+        deployment, outputs = deploy_arm_template_at_resource_group(
+            cmd, sandbox.resource_group, template_file=None,
+            template_uri=template_uri, parameters=[image_params])
         logs = get_arm_output(outputs, 'logs')
         bake_logs = get_arm_output(outputs, 'bake')
         portal = get_arm_output(outputs, 'portal')

@@ -124,7 +124,7 @@ def temp_repo(temp_dir):
     # Create .git directory
     git_dir = temp_dir / '.git'
     git_dir.mkdir()
-    
+
     # Create git config
     git_config = git_dir / 'config'
     git_config.write_text('''[core]
@@ -133,11 +133,11 @@ def temp_repo(temp_dir):
     url = https://github.com/testorg/testrepo.git
     fetch = +refs/heads/*:refs/remotes/origin/*
 ''')
-    
+
     # Create images directory
     images_dir = temp_dir / 'images'
     images_dir.mkdir()
-    
+
     return temp_dir
 
 
@@ -145,13 +145,13 @@ def temp_repo(temp_dir):
 def temp_image_dir(temp_repo, sample_image_dict):
     """Create a temporary image directory with image.yml."""
     import yaml
-    
+
     image_dir = temp_repo / 'images' / 'TestImage'
     image_dir.mkdir(parents=True)
-    
+
     image_file = image_dir / 'image.yml'
     image_file.write_text(yaml.safe_dump(sample_image_dict))
-    
+
     return image_dir
 
 
@@ -159,10 +159,10 @@ def temp_image_dir(temp_repo, sample_image_dict):
 def temp_bake_yaml(temp_repo, sample_bake_config_dict):
     """Create a temporary bake.yml file."""
     import yaml
-    
+
     bake_file = temp_repo / 'bake.yml'
     bake_file.write_text(yaml.safe_dump(sample_bake_config_dict))
-    
+
     return bake_file
 
 
@@ -252,13 +252,13 @@ def clean_env():
         'GITHUB_ACTION',
         'TF_BUILD'
     ]
-    
+
     old_values = {}
     for var in env_vars:
         old_values[var] = os.environ.pop(var, None)
-    
+
     yield
-    
+
     # Restore original values
     for var, value in old_values.items():
         if value is not None:
@@ -275,10 +275,10 @@ def github_ci_env(clean_env):
     os.environ['GITHUB_REF'] = 'refs/heads/main'
     os.environ['GITHUB_SHA'] = 'abc123def456'
     os.environ['GITHUB_TOKEN'] = 'test-token'
-    
+
     yield
-    
-    for var in ['CI', 'GITHUB_ACTION', 'GITHUB_SERVER_URL', 'GITHUB_REPOSITORY', 
+
+    for var in ['CI', 'GITHUB_ACTION', 'GITHUB_SERVER_URL', 'GITHUB_REPOSITORY',
                 'GITHUB_REF', 'GITHUB_SHA', 'GITHUB_TOKEN']:
         os.environ.pop(var, None)
 
@@ -291,9 +291,9 @@ def devops_ci_env(clean_env):
     os.environ['BUILD_SOURCEBRANCH'] = 'refs/heads/main'
     os.environ['BUILD_SOURCEVERSION'] = 'abc123def456'
     os.environ['SYSTEM_ACCESSTOKEN'] = 'test-token'
-    
+
     yield
-    
+
     for var in ['TF_BUILD', 'BUILD_REPOSITORY_URI', 'BUILD_SOURCEBRANCH',
                 'BUILD_SOURCEVERSION', 'SYSTEM_ACCESSTOKEN']:
         os.environ.pop(var, None)
