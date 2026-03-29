@@ -200,7 +200,7 @@ def get_choco_package_setup(package: ChocoPackage) -> str:
         if key not in ('id', 'restart'):
             choco_setup_string += f" --{key} '{pkg[key]}'"
 
-    choco_setup_string += '--yes --no-progress'
+    choco_setup_string += ' --yes --no-progress'
     return choco_setup_string
 
 
