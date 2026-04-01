@@ -16,6 +16,7 @@ from azext_bake._data import (
     Image,
     ImageBase,
     ImageInstall,
+    ImageInstallActiveSetup,
     ImageInstallChoco,
     ImageInstallScripts,
     ImagePlan,
@@ -190,6 +191,19 @@ class TestChocoDefaults:
         assert d.source is None
         assert d.install_arguments is None
 
+    def test_restart_defaults_false(self):
+        d = ChocoDefaults({})
+        assert d.restart is False
+
+    def test_restart_set(self):
+        d = ChocoDefaults({'restart': True})
+        assert d.restart is True
+
+    def test_restart_field_is_valid(self):
+        # 'restart' is a valid field so this should NOT raise
+        d = ChocoDefaults({'restart': True})
+        assert d.restart is True
+
 
 class TestChocoPackage:
     def test_basic(self):
@@ -245,6 +259,18 @@ class TestChocoPackage:
         pkg.apply_defaults(defaults)
         assert pkg.install_arguments == '--ia'
 
+    def test_apply_defaults_restart(self):
+        defaults = ChocoDefaults({'restart': True})
+        pkg = ChocoPackage({'id': 'git'})
+        pkg.apply_defaults(defaults)
+        assert pkg.restart is True
+
+    def test_apply_defaults_restart_already_true(self):
+        defaults = ChocoDefaults({'restart': True})
+        pkg = ChocoPackage({'id': 'git', 'restart': True})
+        pkg.apply_defaults(defaults)
+        assert pkg.restart is True
+
 
 # -------------------------------------------------------
 # ImageInstallChoco
@@ -260,6 +286,25 @@ class TestImageInstallChoco:
     def test_dict_form(self):
         choco = ImageInstallChoco({'packages': [{'id': 'git', 'version': '2.40.0'}]})
         assert choco.packages[0].version == '2.40.0'
+
+
+# -------------------------------------------------------
+# ImageInstallActiveSetup
+# -------------------------------------------------------
+
+class TestImageInstallActiveSetup:
+    def test_basic(self):
+        active = ImageInstallActiveSetup({'commands': ['cmd1', 'cmd2']})
+        assert active.commands == ['cmd1', 'cmd2']
+
+    def test_single_command(self):
+        active = ImageInstallActiveSetup({'commands': ['mycommand']})
+        assert len(active.commands) == 1
+        assert active.commands[0] == 'mycommand'
+
+    def test_missing_commands(self):
+        with pytest.raises(ValidationError, match='missing required property'):
+            ImageInstallActiveSetup({})
 
 
 # -------------------------------------------------------
@@ -412,6 +457,26 @@ class TestImage:
         }
         img = Image(obj, path=image_file)
         assert img.plan.name == 'plan1'
+
+    def test_with_activesetup_section(self, tmp_path):
+        image_dir = tmp_path / 'images' / 'Img'
+        image_dir.mkdir(parents=True)
+        image_file = image_dir / 'image.yml'
+        image_file.touch()
+
+        obj = {
+            'publisher': 'pub', 'offer': 'off', 'replicaLocations': ['eastus'],
+            'sku': 'sku1', 'version': '1.0.0', 'os': 'Windows',
+            'install': {
+                'activesetup': {
+                    'commands': ['cmd1', 'cmd2'],
+                },
+            },
+        }
+        img = Image(obj, path=image_file)
+        assert img.install is not None
+        assert img.install.activesetup is not None
+        assert img.install.activesetup.commands == ['cmd1', 'cmd2']
 
 
 # -------------------------------------------------------
